@@ -1,0 +1,90 @@
+name: Publish Docker image
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  IMAGE_NAME: walfa/chora-observability
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out observability repository
+        uses: actions/checkout@v7
+        with:
+          path: services/chora-observability
+
+      - name: Check out shared Go library
+        uses: actions/checkout@v7
+        with:
+          repository: apollo-chora/chora-go-common
+          path: libs/chora-go-common
+
+      - name: Check out generated contracts
+        uses: actions/checkout@v7
+        with:
+          repository: locoroco-git/Chora-LMS
+          path: _chora-lms
+          sparse-checkout: |
+            chora-contracts/gen/go
+          sparse-checkout-cone-mode: true
+
+      - name: Assemble monorepo build context
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p chora-contracts
+          cp -R _chora-lms/chora-contracts/gen/go chora-contracts/gen
+          rm -rf _chora-lms
+          test -f services/chora-observability/Dockerfile
+          test -d libs/chora-go-common
+          test -d chora-contracts/gen/go
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v4
+        with:
+          username: walfa
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=sha,prefix=sha-
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+
+      - name: Build and push
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: services/chora-observability/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            SERVICE_NAME=chora-observability
+            GIT_SHA=${{ github.sha }}
+            BUILD_TIME=${{ steps.meta.outputs.created }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
