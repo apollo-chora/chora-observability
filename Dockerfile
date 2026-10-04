@@ -62,7 +62,7 @@ ARG GIT_SHA
 ARG BUILD_TIME
 
 LABEL org.opencontainers.image.title="${SERVICE_NAME}" \
-      org.opencontainers.image.source="https://github.com/5007-Capstone/chora" \
+      org.opencontainers.image.source="https://github.com/apollo-chora/chora-observability" \
       org.opencontainers.image.revision="${GIT_SHA}" \
       org.opencontainers.image.created="${BUILD_TIME}" \
       org.opencontainers.image.vendor="Chora Platform" \

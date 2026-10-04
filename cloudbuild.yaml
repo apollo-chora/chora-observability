@@ -333,15 +333,15 @@ steps:
   #
   # Prereq (user-managed, not auto-provisioned):
   #   - GitHub Security: provision a fine-grained PAT with
-  #     `code_scanning_alerts: read/write` scope on `5007-Capstone/chora`;
+  #     `code_scanning_alerts: read/write` scope on `apollo-chora/chora-observability`;
   #     store in Secret Manager as `github-codescanning-pat`. Without
   #     this the GH upload is silently skipped (ADVISORY log line).
   #
   # SARIF files (gosec, trivy) are uploaded via the GitHub Code Scanning
   # SARIF API:
-  #   POST /repos/5007-Capstone/chora/code-scanning/sarifs
+  #   POST /repos/apollo-chora/chora-observability/code-scanning/sarifs
   # Findings appear at:
-  #   https://github.com/5007-Capstone/chora/security/code-scanning
+  #   https://github.com/apollo-chora/chora-observability/security/code-scanning
   - id: sarif-publish
     name: gcr.io/cloud-builders/gcloud
     entrypoint: bash
@@ -358,7 +358,7 @@ steps:
           echo "ADVISORY: github-codescanning-pat secret not present — skipping SARIF -> GH Security"
           exit 0
         fi
-        REPO="5007-Capstone/chora"
+        REPO="apollo-chora/chora-observability"
         REF="refs/heads/main"
         COMMIT="$${SHA}"
         UPLOADED=0
