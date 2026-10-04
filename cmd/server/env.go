@@ -71,7 +71,7 @@ func loadDotEnvOptional(path string) error {
 func parseDotEnvValue(value string) string {
 	if len(value) >= 2 {
 		if (value[0] == '"' && value[len(value)-1] == '"') ||
-			(value[0] == ''' && value[len(value)-1] == ''') {
+			(value[0] == '\\'' && value[len(value)-1] == '\\'') {
 			return value[1 : len(value)-1]
 		}
 	}
