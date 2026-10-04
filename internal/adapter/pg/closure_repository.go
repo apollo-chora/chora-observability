@@ -74,9 +74,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/google/uuid"
-
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/config"
+	"github.com/apollo-chora/chora-observability/internal/config"
 )
 
 // ErrClosureExecutorUnbuilt is returned by Pseudonymise until a real per-table
@@ -141,59 +139,6 @@ func (r *ClosureRepository) Pseudonymise(ctx context.Context, tenantID, gcid str
 	// Disarmed until a real executor exists: see ErrClosureExecutorUnbuilt.
 	// Placed FIRST so no ack row is written and no success is published.
 	return 0, ErrClosureExecutorUnbuilt
-
-	if strings.TrimSpace(tenantID) == "" {
-		return 0, errors.New("pg.ClosureRepository.Pseudonymise: tenant_id required")
-	}
-	if strings.TrimSpace(gcid) == "" {
-		return 0, errors.New("pg.ClosureRepository.Pseudonymise: gcid required")
-	}
-	if r.q == nil {
-		return 0, errors.New("pg.ClosureRepository.Pseudonymise: no Querier wired")
-	}
-
-	id, err := uuid.NewV7()
-	if err != nil {
-		return 0, fmt.Errorf("pg.ClosureRepository.Pseudonymise: uuidv7: %w", err)
-	}
-
-	// Declared-intent row count from the PII map — see package doc: this
-	// adapter does not itself touch token_usage_ledger/agent_decision_log/etc.
-	rows := 0
-	for _, t := range spec {
-		rows += len(t.Columns)
-	}
-
-	// tenant_id is normalised ("platform"/"" → NilTenantUUID) so it both
-	// satisfies the UUID column AND matches the SET LOCAL chora.tenant_id
-	// GUC the RLS tenant_isolation policy checks (mirrors
-	// ledger_repository.go's Append).
-	normTenant := NormalizeTenantForRLS(tenantID)
-
-	conflict := false
-	txErr := r.q.WithTenantTx(ctx, normTenant, func(ctx context.Context, tx TenantScopedQuerier) error {
-		var insertedID string
-		row := tx.QueryRow(ctx, sqlClosurePseudonymiseInsert, id.String(), normTenant, gcid, rows)
-		if err := row.Scan(&insertedID); err != nil {
-			if errors.Is(err, ErrNoRows) {
-				// ON CONFLICT DO NOTHING fired: another call already
-				// durably acked this (tenant, gcid) pair. Idempotent
-				// no-op — fail loud only on a GENUINE backing-store
-				// error (below).
-				conflict = true
-				return nil
-			}
-			return err
-		}
-		return nil
-	})
-	if txErr != nil {
-		return 0, fmt.Errorf("pg.ClosureRepository.Pseudonymise: %w", txErr)
-	}
-	if conflict {
-		return 0, nil
-	}
-	return rows, nil
 }
 
 // IsPseudonymised reports whether (tenantID, gcid) has already been
