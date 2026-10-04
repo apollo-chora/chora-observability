@@ -14,6 +14,32 @@ TraceCorrelation + 3-level Budget + cost reconciliation.
 | **Topic prefix** | `chora.observability.*` (canonical: `chora.observability.token_usage.recorded.v1`) |
 | **Module** | `github.com/5007-Capstone/chora/services/chora-observability` |
 
+## Local configuration
+
+The service and the reconciliation job automatically load a dotenv file before reading any configuration.
+
+Create the local file:
+
+```bash
+cp .env.example .env
+```
+
+Then run the service normally:
+
+```bash
+go run ./cmd/server
+```
+
+The lookup order is `.env` in the current working directory, then `/app/.env`. Set `CHORA_ENV_FILE` to use another path. Values already present in the process environment always win, so Kubernetes, Cloud Run, Docker, CI, and Secret Manager injection remain authoritative.
+
+For a container, do not bake `.env` into the image. Use Docker's env-file support:
+
+```bash
+docker run --rm --env-file .env IMAGE
+```
+
+The checked-in `.env.example` is only a template; `.env` is ignored by Git and excluded from the Docker build context.
+
 ## Aggregates
 
 - **`TokenUsageLedger`** — append-only, billing-grade cost ledger (one row per LLM call). int64 micros (1e-6 USD) throughout.
