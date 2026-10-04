@@ -54,6 +54,7 @@ services:
     env_file:
       - .env
     environment:
+      CHORA_STRICT_STARTUP: "true"
       CHORA_DB_DSN: postgres://chora:chora@postgres:5432/chora_observability?sslmode=disable
       CHORA_PUBSUB_PROJECT: chora-local
       GOOGLE_CLOUD_PROJECT: chora-local
