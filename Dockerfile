@@ -5,7 +5,6 @@
 # DO NOT edit ad-hoc; sync changes back to the template.
 #
 # Build context = this repository.
-# synthesised inside the image listing only this service + libs/chora-go-common.
 # Standard invocation (chora-infra/scripts/build-publish-local.sh):
 #   docker buildx build --platform=linux/amd64 \
 #     -f services/chora-observability/Dockerfile \
@@ -35,7 +34,9 @@ WORKDIR /src
 
 RUN apk add --no-cache ca-certificates git
 
-# The service is standalone; shared Chora modules are resolved through Go modules.\n\nCOPY services/${SERVICE_NAME}/ ./services/${SERVICE_NAME}/\n\nWORKDIR /src/services/${SERVICE_NAME}
+# The service is standalone; shared Chora modules are resolved through Go modules.
+COPY services/${SERVICE_NAME}/ ./services/${SERVICE_NAME}/
+WORKDIR /src/services/${SERVICE_NAME}
 
 # Pre-fetch standalone module dependencies.
 RUN go mod download
