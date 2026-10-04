@@ -111,6 +111,15 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
+	log.Printf(
+		"observability: startup config strict=%t tracing=%t decision_bigquery=%t eval_bigquery=%t pubsub_emulator=%t",
+		strictStartup,
+		envEnabled("CHORA_TRACING_ENABLED", true),
+		envEnabled("CHORA_DECISION_BQ_ENABLED", true),
+		strings.TrimSpace(os.Getenv("CHORA_EVAL_EVIDENCE_BQ")) != "",
+		strings.TrimSpace(os.Getenv("PUBSUB_EMULATOR_HOST")) != "",
+	)
+
 	// OTLP wiring per Tier 3 D13 — direct to Cloud Trace in prod.
 	//
 	// HHH-2 paydown (2026-05-14): the bespoke internal/observability
