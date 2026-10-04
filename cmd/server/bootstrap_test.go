@@ -3,6 +3,7 @@ package main
 
 import (
 	"context"
+	"os"
 	"testing"
 )
 
@@ -62,5 +63,38 @@ func TestEnvOrDefault_PrefersEnvWhenSet(t *testing.T) {
 	t.Setenv("PRESENT_KEY_XYZ", "set-value")
 	if got := envOrDefault("PRESENT_KEY_XYZ", "fallback"); got != "set-value" {
 		t.Errorf("envOrDefault = %q; want set-value", got)
+	}
+}
+
+func TestLoadDotEnv_LoadsValuesWithoutOverwritingExistingEnv(t *testing.T) {
+	t.Setenv("DOTENV_TEST_EXISTING", "process-value")
+
+	path := t.TempDir() + "/.env"
+	content := "DOTENV_TEST_NEW=loaded-value\nDOTENV_TEST_EXISTING=file-value\nexport DOTENV_TEST_QUOTED="hello world"\n# comment\n"
+	if err := os.WriteFile(path, []byte(content), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := loadDotEnv(path); err != nil {
+		t.Fatalf("loadDotEnv: %v", err)
+	}
+	if got := os.Getenv("DOTENV_TEST_NEW"); got != "loaded-value" {
+		t.Fatalf("new value = %q; want loaded-value", got)
+	}
+	if got := os.Getenv("DOTENV_TEST_EXISTING"); got != "process-value" {
+		t.Fatalf("existing value = %q; want process-value", got)
+	}
+	if got := os.Getenv("DOTENV_TEST_QUOTED"); got != "hello world" {
+		t.Fatalf("quoted value = %q; want hello world", got)
+	}
+}
+
+func TestLoadDotEnv_RejectsMalformedEntry(t *testing.T) {
+	path := t.TempDir() + "/.env"
+	if err := os.WriteFile(path, []byte("NOT_A_PAIR\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := loadDotEnv(path); err == nil {
+		t.Fatal("expected malformed dotenv entry to fail")
 	}
 }
