@@ -118,18 +118,19 @@ func main() {
 	// Cloud Trace TLS handshake can no longer swallow the bootstrap
 	// budget under PgBouncer 4-container cold-start. Mirrors chora-
 	// sharing (commit 3340c7c3) + chora-tenancy (commit c3205431).
-	otlpHandle := observability.InitAsync(ctx)
-	defer func() {
-		// WaitContext blocks until init settles — usually a no-op by
-		// shutdown time because pgx-pool init below already gave OTLP
-		// best-effort wall-clock to land.
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		res := otlpHandle.WaitContext(shutdownCtx)
-		if err := res.Shutdown(shutdownCtx); err != nil {
-			log.Printf("trace shutdown error: %v", err)
-		}
-	}()
+	if envEnabled("CHORA_TRACING_ENABLED", true) {
+		otlpHandle := observability.InitAsync(ctx)
+		defer func() {
+			shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			res := otlpHandle.WaitContext(shutdownCtx)
+			if err := res.Shutdown(shutdownCtx); err != nil {
+				log.Printf("trace shutdown error: %v", err)
+			}
+		}()
+	} else {
+		log.Printf("observability: tracing disabled by CHORA_TRACING_ENABLED")
+	}
 
 	// ----------------------------------------------------------------------
 	// Repository wiring.
@@ -347,7 +348,7 @@ func main() {
 	// the canonical store and is unaffected either way. Env config mirrors the
 	// eval-evidence client.
 	var decisionBQSink events.DecisionBQSink
-	{
+	if envEnabled("CHORA_DECISION_BQ_ENABLED", true) {
 		bqProject := envOrDefault("CHORA_DECISION_BQ_PROJECT",
 			envOrDefault("CHORA_PROJECT", envOrDefault("GOOGLE_CLOUD_PROJECT", "chora-489812")))
 		bqDataset := envOrDefault("CHORA_DECISION_BQ_DATASET", "chora_observability_analytics")
@@ -360,6 +361,8 @@ func main() {
 			defer func() { _ = sink.Close() }()
 			log.Printf("observability: decision BQ mirror enabled (%s.%s.%s)", bqProject, bqDataset, bqTable)
 		}
+	} else {
+		log.Printf("observability: decision BQ mirror disabled by CHORA_DECISION_BQ_ENABLED")
 	}
 	agentDecisionConsumer := events.NewAgentDecisionConsumer(events.AgentDecisionConsumerConfig{
 		Repo:   decisionRepo,
