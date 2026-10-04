@@ -1,0 +1,10 @@
+# Local secrets/config
+.env
+.env.*
+!.env.example
+
+# Go build/test output
+*.test
+*.out
+coverage.out
+cover.out
