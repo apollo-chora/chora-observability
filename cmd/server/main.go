@@ -96,6 +96,8 @@ const (
 )
 
 func main() {
+	loadEnvFiles()
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
