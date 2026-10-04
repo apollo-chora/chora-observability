@@ -41,6 +41,9 @@ func bootstrapDBPool(ctx context.Context) (*pgxpool.Pool, func()) {
 	dsn := os.Getenv("CHORA_DB_DSN")
 	secretID := os.Getenv("CHORA_DB_DSN_SECRET_ID")
 	if dsn == "" && secretID == "" {
+		if envEnabled("CHORA_STRICT_STARTUP", false) {
+			log.Fatal("observability: strict startup: CHORA_DB_DSN or CHORA_DB_DSN_SECRET_ID is required; refusing in-memory repository fallback")
+		}
 		log.Printf("observability: CHORA_DB_DSN / CHORA_DB_DSN_SECRET_ID unset — using in-memory repositories")
 		return nil, nil
 	}
@@ -104,6 +107,9 @@ func bootstrapDBPool(ctx context.Context) (*pgxpool.Pool, func()) {
 func bootstrapPubSubClient(ctx context.Context) (cgcpubsub.CloudPubSubClient, func()) {
 	project := os.Getenv("CHORA_PUBSUB_PROJECT")
 	if project == "" {
+		if envEnabled("CHORA_STRICT_STARTUP", false) {
+			log.Fatal("observability: strict startup: CHORA_PUBSUB_PROJECT is required; refusing in-memory Pub/Sub fallback")
+		}
 		return nil, nil
 	}
 	if emulator := os.Getenv("PUBSUB_EMULATOR_HOST"); emulator != "" {
@@ -111,6 +117,9 @@ func bootstrapPubSubClient(ctx context.Context) (cgcpubsub.CloudPubSubClient, fu
 	}
 	cli, err := cgcpubsub.NewGCPClient(ctx, project)
 	if err != nil {
+		if envEnabled("CHORA_STRICT_STARTUP", false) {
+			log.Fatalf("observability: strict startup: Pub/Sub client init failed; refusing in-memory fallback: %v", err)
+		}
 		log.Printf("observability: pubsub client init failed: %v — falling back to in-memory recorder", err)
 		return nil, nil
 	}
