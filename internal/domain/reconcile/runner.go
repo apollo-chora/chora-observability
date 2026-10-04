@@ -1,11 +1,11 @@
 // runner.go — Runner orchestrates the daily reconciliation:
 //
-//   1. Pull BigQuery SUM(token_usage_ledger.cost_usd_micros) for the window.
-//   2. Pull Vertex Billing API aggregated cost for the same window.
-//   3. Run reconcile.Check (pure domain logic).
-//   4. If IsAnomaly: emit chora.governance.payment_reconciliation.anomaly.v1
-//      via EventSink (Pub/Sub publisher in production; recording stub in
-//      tests).
+//  1. Pull BigQuery SUM(token_usage_ledger.cost_usd_micros) for the window.
+//  2. Pull Vertex Billing API aggregated cost for the same window.
+//  3. Run reconcile.Check (pure domain logic).
+//  4. If IsAnomaly: emit chora.governance.payment_reconciliation.anomaly.v1
+//     via EventSink (Pub/Sub publisher in production; recording stub in
+//     tests).
 //
 // The Runner is the bridge between the pure domain (Check) and the cmd/
 // reconcile Cloud Run Job entrypoint. It is itself testable via mocked

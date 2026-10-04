@@ -164,9 +164,9 @@ func TestNewEventSinksFromEnv_RequiredWithProjectSet(t *testing.T) {
 
 func TestMain_RunsHappyPath(t *testing.T) {
 	withEnv(t, map[string]string{
-		"GOOGLE_CLOUD_PROJECT":   "chora-main-test",
-		"BILLING_CLIENT_MODE":    "",
-		"CHORA_PUBSUB_PROJECT":   "",
+		"GOOGLE_CLOUD_PROJECT":     "chora-main-test",
+		"BILLING_CLIENT_MODE":      "",
+		"CHORA_PUBSUB_PROJECT":     "",
 		"RECONCILE_REQUIRE_PUBSUB": "",
 	})
 	// main() calls run(); on the happy path (mock clients, logging sink) it

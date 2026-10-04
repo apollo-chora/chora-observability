@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/bigquery"
+	"github.com/apollo-chora/chora-observability/internal/adapter/bigquery"
 )
 
 func TestMockClient_SumLedgerCostMicrosForWindow(t *testing.T) {

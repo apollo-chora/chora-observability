@@ -12,7 +12,7 @@
 // the observability service ITSELF — special-cased to its own (older)
 // OTLP wiring path.
 //
-// This file now thinly delegates to libs/chora-go-common/observability
+// This file now thinly delegates to chora-common/observability
 // (canonical lib) so the bespoke divergence closes for good. Backward-
 // compatibility is preserved at the public API level (Init / SwapExporterFactoryForTest)
 // so the call site in cmd/server/main.go can either keep the legacy
@@ -28,7 +28,7 @@
 //     per chora-sharing / chora-tenancy reference migration. Decouples
 //     OTLP init from pgx-pool init so a slow Cloud Trace TLS handshake
 //     can no longer swallow the pod's bootstrap budget under PgBouncer
-//     4-container cold-start. See libs/chora-go-common/bootstrap/README.md.
+//     4-container cold-start. See chora-common/bootstrap/README.md.
 //
 // Recursion warning (META-LEVEL OBSERVABILITY): chora-observability emits
 // traces for ITS OWN HTTP requests. Those self-emitted traces do NOT
@@ -50,8 +50,8 @@ import (
 	"context"
 	"errors"
 
-	"github.com/5007-Capstone/chora/libs/chora-go-common/bootstrap"
-	commonobs "github.com/5007-Capstone/chora/libs/chora-go-common/observability"
+	"github.com/apollo-chora/chora-common/bootstrap"
+	commonobs "github.com/apollo-chora/chora-common/observability"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 

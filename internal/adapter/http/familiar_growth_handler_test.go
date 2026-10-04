@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
-	httpadapter "github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/http"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/inmem"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/subscribers"
-	fg "github.com/5007-Capstone/chora/services/chora-observability/internal/domain/familiargrowth"
+	httpadapter "github.com/apollo-chora/chora-observability/internal/adapter/http"
+	"github.com/apollo-chora/chora-observability/internal/adapter/inmem"
+	"github.com/apollo-chora/chora-observability/internal/adapter/subscribers"
+	fg "github.com/apollo-chora/chora-observability/internal/domain/familiargrowth"
 )
 
 const (
@@ -68,14 +68,14 @@ func fillFGRepo(t *testing.T) *inmem.FamiliarGrowthRepository {
 			species = "legendary"
 		}
 		ingestOrFail(t, sub, subscribers.FamiliarGrowthEvent{
-			SourceTopic:   fg.TopicBreedRevealed,
-			SourceEventID: uuidish(i, 'b'),
-			TenantID:      fgTenant,
-			OwnerGCID:     fgGCID,
-			FamiliarID:    fgFamiliar,
-			EggSKU:        "egg.standard.v1",
-			Species:       species,
-			Rarity:        "common",
+			SourceTopic:       fg.TopicBreedRevealed,
+			SourceEventID:     uuidish(i, 'b'),
+			TenantID:          fgTenant,
+			OwnerGCID:         fgGCID,
+			FamiliarID:        fgFamiliar,
+			EggSKU:            "egg.standard.v1",
+			Species:           species,
+			Rarity:            "common",
 			RolledProbability: 25.0,
 			DistributionSnapshot: map[string]any{
 				"common":    25.0,

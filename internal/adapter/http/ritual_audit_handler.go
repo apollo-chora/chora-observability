@@ -15,7 +15,7 @@ import (
 	"strconv"
 	"strings"
 
-	ra "github.com/5007-Capstone/chora/services/chora-observability/internal/domain/ritualaudit"
+	ra "github.com/apollo-chora/chora-observability/internal/domain/ritualaudit"
 )
 
 // RitualAuditHandler wraps the ritualaudit.Repository for HTTP.

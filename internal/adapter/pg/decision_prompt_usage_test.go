@@ -12,7 +12,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/pg"
+	"github.com/apollo-chora/chora-observability/internal/adapter/pg"
 )
 
 var promptUsageAgentIDs = []string{"qgen_question", "qgen_critic", "oe_evaluator", "oe_moderator"}

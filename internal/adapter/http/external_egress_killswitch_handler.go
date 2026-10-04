@@ -13,7 +13,7 @@ import (
 	"net/http"
 	"time"
 
-	ee "github.com/5007-Capstone/chora/services/chora-observability/internal/domain/externalegress"
+	ee "github.com/apollo-chora/chora-observability/internal/domain/externalegress"
 )
 
 // EgressKillSwitchHandler serves GET/PATCH on the platform egress kill-switch.

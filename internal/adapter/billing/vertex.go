@@ -100,9 +100,9 @@ type VertexClient struct {
 	baseURL *url.URL
 
 	// Circuit breaker state — accessed under breakerMu.
-	breakerMu          sync.Mutex
-	consecutiveFails   int
-	breakerOpenedAt    time.Time
+	breakerMu        sync.Mutex
+	consecutiveFails int
+	breakerOpenedAt  time.Time
 }
 
 // NewVertexClient constructs a real Cloud Billing API client.

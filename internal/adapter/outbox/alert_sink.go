@@ -24,8 +24,8 @@ import (
 	"fmt"
 	"time"
 
-	cgcenvelope "github.com/5007-Capstone/chora/libs/chora-go-common/envelope"
-	cgctracing "github.com/5007-Capstone/chora/libs/chora-go-common/tracing"
+	cgcenvelope "github.com/apollo-chora/chora-common/envelope"
+	cgctracing "github.com/apollo-chora/chora-common/tracing"
 )
 
 // PublisherAlertSinkConfig wires a PublisherAlertSink.

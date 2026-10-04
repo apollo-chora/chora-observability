@@ -15,7 +15,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/reconcile"
+	"github.com/apollo-chora/chora-observability/internal/domain/reconcile"
 )
 
 func TestNewEventSinksFromEnv_UnsetProject_LoggingFallback(t *testing.T) {

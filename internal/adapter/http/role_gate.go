@@ -23,7 +23,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/5007-Capstone/chora/libs/chora-go-common/auth/servicemesh"
+	"github.com/apollo-chora/chora-common/auth/servicemesh"
 )
 
 // RolePlatformOperator is the sole role admitted to platform-wide runtime

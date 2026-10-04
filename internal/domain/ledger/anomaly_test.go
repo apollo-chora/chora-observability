@@ -12,7 +12,7 @@ package ledger_test
 import (
 	"testing"
 
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/ledger"
+	"github.com/apollo-chora/chora-observability/internal/domain/ledger"
 )
 
 func TestAnomalyDetector_NoBaseline_NoAlert(t *testing.T) {
@@ -20,10 +20,10 @@ func TestAnomalyDetector_NoBaseline_NoAlert(t *testing.T) {
 	// Baseline=0 (no history yet) → never fires.
 	det := ledger.NewAnomalyDetector()
 	out := det.Detect(ledger.AnomalyInput{
-		AgentID:           "agent-x",
-		BaselineMeanMicros: 0,
+		AgentID:              "agent-x",
+		BaselineMeanMicros:   0,
 		BaselineStdDevMicros: 0,
-		ObservedMicros:    1_000_000,
+		ObservedMicros:       1_000_000,
 	})
 	if out.IsAnomaly {
 		t.Errorf("zero baseline should never fire; got %+v", out)

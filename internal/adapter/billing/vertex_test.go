@@ -22,7 +22,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/billing"
+	"github.com/apollo-chora/chora-observability/internal/adapter/billing"
 )
 
 // staticTokenSource is a tiny TokenSource that always returns the same

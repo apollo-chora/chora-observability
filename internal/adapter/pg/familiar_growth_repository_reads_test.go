@@ -23,8 +23,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/pg"
-	fg "github.com/5007-Capstone/chora/services/chora-observability/internal/domain/familiargrowth"
+	"github.com/apollo-chora/chora-observability/internal/adapter/pg"
+	fg "github.com/apollo-chora/chora-observability/internal/domain/familiargrowth"
 )
 
 const readTenant = "11111111-1111-7111-8111-111111111111"

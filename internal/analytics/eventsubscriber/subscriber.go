@@ -12,7 +12,7 @@
 // is a pure leaf consumer in the chora event graph.
 //
 // W2c (M12.3 Wave 2, 2026-05-12): inbox dedup wired via
-// `libs/chora-go-common/idempotent.Store`. The aggregator's internal
+// `chora-common/idempotent.Store`. The aggregator's internal
 // `seen map[string]struct{}` was insufficient under chaos (pod-death
 // loses state, multi-replica fragments dedup, no TTL bound). The inbox
 // is the canonical Pillar 2 (consumer-side dual of the outbox) per
@@ -24,8 +24,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/5007-Capstone/chora/libs/chora-go-common/idempotent"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/analytics/eventaggregator"
+	"github.com/apollo-chora/chora-common/idempotent"
+	"github.com/apollo-chora/chora-observability/internal/analytics/eventaggregator"
 )
 
 // InboxTTL is the dedupe-key retention window for the analytics subscriber.
@@ -36,7 +36,7 @@ const InboxTTL = 24 * time.Hour
 // Subscriber consumes envelopes and folds them into the Aggregator.
 //
 // Inbox dedupe (W2c): the per-event dedupe key lives in a
-// chora-go-common/idempotent.Store. Production wires PostgresStore
+// chora-common/idempotent.Store. Production wires PostgresStore
 // against the chora_observability database's idempotency_keys table;
 // dev / tests use MemoryStore. The store survives pod-death and is
 // shared across replicas, which the previous in-process aggregator

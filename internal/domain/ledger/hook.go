@@ -60,7 +60,7 @@ type OutboxRecorder interface {
 
 // OutboxRecord is the value shape the hook hands to OutboxRecorder. The
 // adapter is responsible for transforming this into a Postgres row + later
-// publishing to Pub/Sub via the Relay (per chora-go-common/outbox conventions).
+// publishing to Pub/Sub via the Relay (per chora-common/outbox conventions).
 type OutboxRecord struct {
 	EventID            string    `json:"event_id"` // UUIDv7
 	IdempotencyKey     string    `json:"idempotency_key"`
@@ -258,4 +258,3 @@ func (h *LedgerHook) Record(ctx context.Context, p RecordParams) (RecordResult, 
 		PricingConfigVersion: h.cfg.PricingConfigVersion,
 	}, nil
 }
-

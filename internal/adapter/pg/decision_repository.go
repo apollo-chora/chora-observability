@@ -31,7 +31,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/decision"
+	"github.com/apollo-chora/chora-observability/internal/domain/decision"
 )
 
 // DecisionRepository is the pgx-backed implementation of decision.Repository.

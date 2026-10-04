@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
-	httpadapter "github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/http"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/inmem"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/decision"
+	httpadapter "github.com/apollo-chora/chora-observability/internal/adapter/http"
+	"github.com/apollo-chora/chora-observability/internal/adapter/inmem"
+	"github.com/apollo-chora/chora-observability/internal/domain/decision"
 )
 
 const countTenant = "01970000-0000-7000-8000-000000000111"

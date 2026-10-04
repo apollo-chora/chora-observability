@@ -23,7 +23,7 @@ import (
 //   - IsCampaign: prompt_conditions->>'request_surface' = 'campaign'
 //     (NULL-safe; absent surface counts as false).
 //
-// PromptVersion/PromptSource are '' when the row carried no such condition;
+// PromptVersion/PromptSource are ” when the row carried no such condition;
 // version-less groups still contribute to per-agent totals but are excluded
 // from versions[] and latest-version resolution (never fabricate).
 type PromptUsageGroup struct {

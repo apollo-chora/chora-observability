@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/inmem"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/subscribers"
-	fg "github.com/5007-Capstone/chora/services/chora-observability/internal/domain/familiargrowth"
+	"github.com/apollo-chora/chora-observability/internal/adapter/inmem"
+	"github.com/apollo-chora/chora-observability/internal/adapter/subscribers"
+	fg "github.com/apollo-chora/chora-observability/internal/domain/familiargrowth"
 )
 
 const (
@@ -132,21 +132,21 @@ func TestSubscriber_BreedRevealed_RecordsD2Audit(t *testing.T) {
 	t.Parallel()
 	sub, repo, pub, _ := newSubscriber(t)
 	ev := subscribers.FamiliarGrowthEvent{
-		SourceTopic:   fg.TopicBreedRevealed,
-		SourceEventID: testEventID1,
-		TenantID:      testTenantID,
-		OwnerGCID:     testGCID,
-		FamiliarID:    testFamiliar,
-		EggSKU:        "egg.standard.v1",
-		Species:       "dragon",
-		Rarity:        "legendary",
-		Shiny:         false,
+		SourceTopic:       fg.TopicBreedRevealed,
+		SourceEventID:     testEventID1,
+		TenantID:          testTenantID,
+		OwnerGCID:         testGCID,
+		FamiliarID:        testFamiliar,
+		EggSKU:            "egg.standard.v1",
+		Species:           "dragon",
+		Rarity:            "legendary",
+		Shiny:             false,
 		RolledProbability: 5.0,
 		DistributionSnapshot: map[string]any{
-			"dragon":  5.0,
-			"owl":     25.0,
-			"fox":     35.0,
-			"rabbit":  35.0,
+			"dragon": 5.0,
+			"owl":    25.0,
+			"fox":    35.0,
+			"rabbit": 35.0,
 		},
 		OccurredAt: time.Date(2026, 5, 13, 11, 0, 0, 0, time.UTC),
 	}
@@ -261,17 +261,17 @@ func TestFamiliarGrowthAuditSubscriber_BreedRevealedNoLongerIncrementsHatchedDel
 	t.Parallel()
 	sub, repo, _, _ := newSubscriber(t)
 	ev := subscribers.FamiliarGrowthEvent{
-		SourceTopic:   fg.TopicBreedRevealed,
-		SourceEventID: testEventID1,
-		TenantID:      testTenantID,
-		OwnerGCID:     testGCID,
-		FamiliarID:    testFamiliar,
-		EggSKU:        "egg.standard.v1",
-		Species:       "owl",
-		Rarity:        "common",
-		Shiny:         false,
+		SourceTopic:       fg.TopicBreedRevealed,
+		SourceEventID:     testEventID1,
+		TenantID:          testTenantID,
+		OwnerGCID:         testGCID,
+		FamiliarID:        testFamiliar,
+		EggSKU:            "egg.standard.v1",
+		Species:           "owl",
+		Rarity:            "common",
+		Shiny:             false,
 		RolledProbability: 35.0,
-		OccurredAt:    time.Date(2026, 5, 13, 11, 0, 0, 0, time.UTC),
+		OccurredAt:        time.Date(2026, 5, 13, 11, 0, 0, 0, time.UTC),
 	}
 	if err := sub.Handle(context.Background(), ev); err != nil {
 		t.Fatalf("handle: %v", err)
@@ -297,14 +297,14 @@ func TestSubscriber_EggPurchased_AddsToFunnel(t *testing.T) {
 	t.Parallel()
 	sub, repo, _, _ := newSubscriber(t)
 	ev := subscribers.FamiliarGrowthEvent{
-		SourceTopic:   fg.TopicEggPurchased,
-		SourceEventID: testEventID1,
-		TenantID:      testTenantID,
-		OwnerGCID:     testGCID,
-		FamiliarID:    testFamiliar,
-		EggSKU:        "egg.standard.v1",
+		SourceTopic:    fg.TopicEggPurchased,
+		SourceEventID:  testEventID1,
+		TenantID:       testTenantID,
+		OwnerGCID:      testGCID,
+		FamiliarID:     testFamiliar,
+		EggSKU:         "egg.standard.v1",
 		PurchaseSource: "purchase",
-		OccurredAt:    time.Date(2026, 5, 13, 9, 0, 0, 0, time.UTC),
+		OccurredAt:     time.Date(2026, 5, 13, 9, 0, 0, 0, time.UTC),
 	}
 	if err := sub.Handle(context.Background(), ev); err != nil {
 		t.Fatalf("handle: %v", err)
@@ -344,10 +344,10 @@ func TestSubscriber_SourceRevelation(t *testing.T) {
 	t.Parallel()
 	sub, repo, _, _ := newSubscriber(t)
 	ev := subscribers.FamiliarGrowthEvent{
-		SourceTopic:   fg.TopicSourceRevelation,
-		SourceEventID: testEventID1,
-		TenantID:      testTenantID,
-		FamiliarID:    testFamiliar,
+		SourceTopic:           fg.TopicSourceRevelation,
+		SourceEventID:         testEventID1,
+		TenantID:              testTenantID,
+		FamiliarID:            testFamiliar,
 		WindowDurationSeconds: 86400,
 	}
 	if err := sub.Handle(context.Background(), ev); err != nil {

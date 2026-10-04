@@ -33,7 +33,7 @@ import (
 	"strings"
 	"time"
 
-	ra "github.com/5007-Capstone/chora/services/chora-observability/internal/domain/ritualaudit"
+	ra "github.com/apollo-chora/chora-observability/internal/domain/ritualaudit"
 )
 
 // RitualAuditRepository is the pgx-backed ritualaudit.Repository.

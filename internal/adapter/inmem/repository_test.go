@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/inmem"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/correlation"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/decision"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/ledger"
+	"github.com/apollo-chora/chora-observability/internal/adapter/inmem"
+	"github.com/apollo-chora/chora-observability/internal/domain/correlation"
+	"github.com/apollo-chora/chora-observability/internal/domain/decision"
+	"github.com/apollo-chora/chora-observability/internal/domain/ledger"
 )
 
 const (

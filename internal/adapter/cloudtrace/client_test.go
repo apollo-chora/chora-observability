@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/cloudtrace"
+	"github.com/apollo-chora/chora-observability/internal/adapter/cloudtrace"
 )
 
 func TestNewClient_RequiresEndpoint(t *testing.T) {

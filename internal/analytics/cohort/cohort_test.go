@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/analytics/cohort"
+	"github.com/apollo-chora/chora-observability/internal/analytics/cohort"
 )
 
 func TestNewCohort_Validates(t *testing.T) {

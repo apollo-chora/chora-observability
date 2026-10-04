@@ -15,8 +15,8 @@ import (
 	"sync"
 	"testing"
 
-	cgcpubsub "github.com/5007-Capstone/chora/libs/chora-go-common/pubsub"
-	obsoutbox "github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/outbox"
+	cgcpubsub "github.com/apollo-chora/chora-common/pubsub"
+	obsoutbox "github.com/apollo-chora/chora-observability/internal/adapter/outbox"
 )
 
 // recordingQuarantineAlert captures alerts emitted by the quarantine wrapper.

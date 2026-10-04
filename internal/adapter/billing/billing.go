@@ -37,9 +37,9 @@ type Client interface {
 // MockClient is the in-memory implementation seeded for tests + the M10
 // skeleton. Map key format: "<project_id>@<window_start_yyyy-mm-dd>".
 type MockClient struct {
-	mu      sync.RWMutex
-	seed    map[string]int64
-	errMsg  string
+	mu     sync.RWMutex
+	seed   map[string]int64
+	errMsg string
 }
 
 // NewMockClient constructs a MockClient with the given seed map.

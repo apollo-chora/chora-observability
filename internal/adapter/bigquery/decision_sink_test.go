@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/decision"
+	"github.com/apollo-chora/chora-observability/internal/domain/decision"
 )
 
 func TestToDecisionBQRow_FullProjection(t *testing.T) {
@@ -21,16 +21,16 @@ func TestToDecisionBQRow_FullProjection(t *testing.T) {
 	}
 	log, err := decision.New(decision.NewParams{
 		TenantID: "t-1", Agid: "a-1", ModelID: "gemini-3-pro",
-		DecisionType:  decision.TypeEscalate,
-		Reason:        "needs human",
-		RiskTier:      decision.TierHigh,
-		CorrelationID: "c-1",
-		Traceparent:   "00-00000000000000000000000000000001-0000000000000001-01",
-		Reasoning:     rs,
-		CrewID:        "crew-7",
+		DecisionType:     decision.TypeEscalate,
+		Reason:           "needs human",
+		RiskTier:         decision.TierHigh,
+		CorrelationID:    "c-1",
+		Traceparent:      "00-00000000000000000000000000000001-0000000000000001-01",
+		Reasoning:        rs,
+		CrewID:           "crew-7",
 		GuardrailOutcome: "block",
-		AutonomyLevel: "advisory",
-		Verdict:       "accepted",
+		AutonomyLevel:    "advisory",
+		Verdict:          "accepted",
 	})
 	if err != nil {
 		t.Fatalf("decision.New: %v", err)

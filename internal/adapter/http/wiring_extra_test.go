@@ -14,10 +14,10 @@ import (
 	"testing"
 	"time"
 
-	analyticsinmem "github.com/5007-Capstone/chora/services/chora-observability/internal/analytics/inmem"
-	httpadapter "github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/http"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/inmem"
-	ee "github.com/5007-Capstone/chora/services/chora-observability/internal/domain/externalegress"
+	httpadapter "github.com/apollo-chora/chora-observability/internal/adapter/http"
+	"github.com/apollo-chora/chora-observability/internal/adapter/inmem"
+	analyticsinmem "github.com/apollo-chora/chora-observability/internal/analytics/inmem"
+	ee "github.com/apollo-chora/chora-observability/internal/domain/externalegress"
 )
 
 // wiredAnalyticsRouter builds the main router with the analytics store

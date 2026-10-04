@@ -7,7 +7,7 @@ package inmem_test
 import (
 	"testing"
 
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/analytics/inmem"
+	"github.com/apollo-chora/chora-observability/internal/analytics/inmem"
 )
 
 func TestNewStore_ComposesAggregatorAndCohorts(t *testing.T) {

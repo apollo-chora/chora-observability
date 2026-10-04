@@ -38,8 +38,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/5007-Capstone/chora/libs/chora-go-common/idempotent"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/ledger"
+	"github.com/apollo-chora/chora-common/idempotent"
+	"github.com/apollo-chora/chora-observability/internal/domain/ledger"
 )
 
 // TopicTokenUsageRecorded is the canonical inbound topic name per

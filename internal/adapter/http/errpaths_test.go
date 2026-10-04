@@ -15,13 +15,13 @@ import (
 	"testing"
 	"time"
 
-	httpadapter "github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/http"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/inmem"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/agents"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/correlation"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/decision"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/familiargrowth"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/ledger"
+	httpadapter "github.com/apollo-chora/chora-observability/internal/adapter/http"
+	"github.com/apollo-chora/chora-observability/internal/adapter/inmem"
+	"github.com/apollo-chora/chora-observability/internal/domain/agents"
+	"github.com/apollo-chora/chora-observability/internal/domain/correlation"
+	"github.com/apollo-chora/chora-observability/internal/domain/decision"
+	"github.com/apollo-chora/chora-observability/internal/domain/familiargrowth"
+	"github.com/apollo-chora/chora-observability/internal/domain/ledger"
 )
 
 // failLedger implements ledger.Repository with fail-Loud errors.
@@ -42,7 +42,9 @@ func (f *failDecision) Append(_ context.Context, _ *decision.Log) error { return
 func (f *failDecision) List(_ context.Context, _ string, _ decision.ListFilter) ([]*decision.Log, error) {
 	return nil, f.err
 }
-func (f *failDecision) GetByID(_ context.Context, _, _ string) (*decision.Log, error) { return nil, f.err }
+func (f *failDecision) GetByID(_ context.Context, _, _ string) (*decision.Log, error) {
+	return nil, f.err
+}
 func (f *failDecision) Count(_ context.Context, _ string, _, _ time.Time) (int64, error) {
 	return 0, f.err
 }

@@ -21,8 +21,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/pg"
-	ra "github.com/5007-Capstone/chora/services/chora-observability/internal/domain/ritualaudit"
+	"github.com/apollo-chora/chora-observability/internal/adapter/pg"
+	ra "github.com/apollo-chora/chora-observability/internal/domain/ritualaudit"
 )
 
 func goodRitualRow() ra.RitualRunAuditRow {

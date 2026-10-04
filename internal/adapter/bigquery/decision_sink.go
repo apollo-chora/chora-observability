@@ -20,7 +20,7 @@ import (
 
 	"cloud.google.com/go/bigquery"
 
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/decision"
+	"github.com/apollo-chora/chora-observability/internal/domain/decision"
 )
 
 // DecisionSink streams agent decisions into BigQuery.

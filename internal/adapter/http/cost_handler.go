@@ -13,8 +13,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/cost"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/ledger"
+	"github.com/apollo-chora/chora-observability/internal/domain/cost"
+	"github.com/apollo-chora/chora-observability/internal/domain/ledger"
 )
 
 // costCumulative GET /api/cost/cumulative

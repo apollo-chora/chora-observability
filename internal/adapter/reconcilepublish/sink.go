@@ -9,7 +9,7 @@
 //	chora.observability.payment_reconciliation.degraded.v1 (reconcile.DegradedEvent)
 //
 // It REUSES the same publisher abstraction the main server's outbox dispatcher
-// uses — `chora-go-common/pubsub`'s OutboxCompatible (CloudPublisher in prod,
+// uses — `chora-common/pubsub`'s OutboxCompatible (CloudPublisher in prod,
 // InMemoryBus in tests) — so there is one Pub/Sub publish path across the
 // service, not two. Per `feedback_no_inline_config` source_project /
 // source_service come from the Config struct (env-sourced at the cmd/reconcile
@@ -24,13 +24,13 @@ import (
 	"fmt"
 	"time"
 
-	cgcenvelope "github.com/5007-Capstone/chora/libs/chora-go-common/envelope"
-	cgctracing "github.com/5007-Capstone/chora/libs/chora-go-common/tracing"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/reconcile"
+	cgcenvelope "github.com/apollo-chora/chora-common/envelope"
+	cgctracing "github.com/apollo-chora/chora-common/tracing"
+	"github.com/apollo-chora/chora-observability/internal/domain/reconcile"
 )
 
 // Publisher is the minimal Pub/Sub publish contract this adapter needs. It is
-// satisfied by chora-go-common/pubsub.CloudPublisher + .InMemoryBus (both
+// satisfied by chora-common/pubsub.CloudPublisher + .InMemoryBus (both
 // implement OutboxCompatible) — the SAME abstraction the main server's outbox
 // dispatcher's Bus port uses. Declared locally to avoid importing the GCP
 // client chain into the reconcile binary's unit tests.

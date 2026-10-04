@@ -10,7 +10,7 @@
 // IMDA dimensions per ADR-141:
 //   - D1 accountability  : exp_awarded / stage_up / source_revelation / egg_purchased / payment_succeeded
 //   - D2 transparency    : breed_revealed (lootbox roll outcome — auditable distribution)
-//                          + hatched (user-visible lifecycle transition; Fix-D 2026-05-16)
+//   - hatched (user-visible lifecycle transition; Fix-D 2026-05-16)
 package familiargrowth
 
 import (
@@ -42,15 +42,15 @@ const (
 
 // AuditLedgerRow mirrors familiar_growth_audit_ledger one-row-per-event.
 type AuditLedgerRow struct {
-	AuditID       string                 `json:"audit_id"`
-	TenantID      string                 `json:"tenant_id"`
-	SourceTopic   string                 `json:"source_topic"`
-	SourceEventID string                 `json:"source_event_id"`
-	FamiliarID    string                 `json:"familiar_id,omitempty"`
-	OwnerGCID     string                 `json:"owner_gcid,omitempty"`
-	EventType     string                 `json:"event_type"`
-	Payload       map[string]any         `json:"payload"`
-	ReceivedAt    time.Time              `json:"received_at"`
+	AuditID       string         `json:"audit_id"`
+	TenantID      string         `json:"tenant_id"`
+	SourceTopic   string         `json:"source_topic"`
+	SourceEventID string         `json:"source_event_id"`
+	FamiliarID    string         `json:"familiar_id,omitempty"`
+	OwnerGCID     string         `json:"owner_gcid,omitempty"`
+	EventType     string         `json:"event_type"`
+	Payload       map[string]any `json:"payload"`
+	ReceivedAt    time.Time      `json:"received_at"`
 }
 
 // DailyMetricsRow mirrors familiar_growth_daily_metrics — per-tenant
@@ -133,10 +133,10 @@ type DailyMetricsDelta struct {
 // EggFunnelDelta is the increment applied to egg_funnel_metrics on a
 // single ingest.
 type EggFunnelDelta struct {
-	DayBucket          time.Time
-	PurchasedDelta     int
-	HatchedDelta       int
-	ExpiredDelta       int
+	DayBucket      time.Time
+	PurchasedDelta int
+	HatchedDelta   int
+	ExpiredDelta   int
 }
 
 // ErrDuplicateSourceEvent signals a UNIQUE collision on source_event_id —

@@ -11,8 +11,8 @@ package inmem
 import (
 	"sync"
 
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/analytics/cohort"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/analytics/eventaggregator"
+	"github.com/apollo-chora/chora-observability/internal/analytics/cohort"
+	"github.com/apollo-chora/chora-observability/internal/analytics/eventaggregator"
 )
 
 // Store is the composed in-memory store the HTTP adapter consumes.

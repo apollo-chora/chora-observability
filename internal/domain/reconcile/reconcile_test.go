@@ -20,17 +20,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/reconcile"
+	"github.com/apollo-chora/chora-observability/internal/domain/reconcile"
 )
 
 func TestReconcile_NoDrift_NoAnomaly(t *testing.T) {
 	t.Parallel()
 	v := reconcile.Check(reconcile.CheckInput{
-		LedgerSumMicros:        1_000_000,
-		VertexBillingMicros:    1_000_000,
-		ToleranceFraction:      0.0001, // 0.01%
-		WindowStart:            time.Date(2026, 5, 9, 0, 0, 0, 0, time.UTC),
-		WindowEnd:              time.Date(2026, 5, 10, 0, 0, 0, 0, time.UTC),
+		LedgerSumMicros:     1_000_000,
+		VertexBillingMicros: 1_000_000,
+		ToleranceFraction:   0.0001, // 0.01%
+		WindowStart:         time.Date(2026, 5, 9, 0, 0, 0, 0, time.UTC),
+		WindowEnd:           time.Date(2026, 5, 10, 0, 0, 0, 0, time.UTC),
 	})
 	if v.IsAnomaly {
 		t.Errorf("zero drift should not fire; got %+v", v)

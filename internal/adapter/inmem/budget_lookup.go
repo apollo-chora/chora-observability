@@ -19,15 +19,15 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/ledger"
+	"github.com/apollo-chora/chora-observability/internal/domain/ledger"
 )
 
 // BudgetLookup is the goroutine-safe in-memory 3-level adapter.
 type BudgetLookup struct {
-	mu      sync.RWMutex
-	tenant  map[string]*ledger.Budget // key = tenantID + "::" + period
-	user    map[string]*ledger.Budget // key = tenantID + "::" + gcid + "::" + period
-	agent   map[string]*ledger.Budget // key = tenantID + "::" + agentID + "::" + period
+	mu     sync.RWMutex
+	tenant map[string]*ledger.Budget // key = tenantID + "::" + period
+	user   map[string]*ledger.Budget // key = tenantID + "::" + gcid + "::" + period
+	agent  map[string]*ledger.Budget // key = tenantID + "::" + agentID + "::" + period
 }
 
 // NewBudgetLookup constructs an initialised 3-level lookup.
@@ -39,8 +39,8 @@ func NewBudgetLookup() *BudgetLookup {
 	}
 }
 
-func key2(a, b string) string             { return a + "::" + b }
-func key3(a, b, c string) string          { return a + "::" + b + "::" + c }
+func key2(a, b string) string    { return a + "::" + b }
+func key3(a, b, c string) string { return a + "::" + b + "::" + c }
 
 // SetTenantBudget persists or replaces the per-tenant budget. Defensively
 // deep-copies so external mutation does not leak.

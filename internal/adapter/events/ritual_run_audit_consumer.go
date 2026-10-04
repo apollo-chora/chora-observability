@@ -34,11 +34,11 @@ import (
 	"github.com/google/uuid"
 	"google.golang.org/protobuf/proto"
 
-	consumptionv1 "github.com/locoroco-git/Chora-LMS/chora-contracts/gen/go/chora/consumption/v1"
+	consumptionv1 "github.com/apollo-chora/chora-contracts/gen/go/chora/consumption/v1"
 
-	"github.com/5007-Capstone/chora/libs/chora-go-common/idempotent"
-	cgcpubsub "github.com/5007-Capstone/chora/libs/chora-go-common/pubsub"
-	ra "github.com/5007-Capstone/chora/services/chora-observability/internal/domain/ritualaudit"
+	"github.com/apollo-chora/chora-common/idempotent"
+	cgcpubsub "github.com/apollo-chora/chora-common/pubsub"
+	ra "github.com/apollo-chora/chora-observability/internal/domain/ritualaudit"
 )
 
 // RitualRunAuditInboxTTL is the dedupe-key retention window for the consumer's

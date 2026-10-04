@@ -2,11 +2,11 @@
 //
 // Middleware chain (outermost first):
 //
-//	logging -> tenantContext -> traceparent -> mux
+//		logging -> tenantContext -> traceparent -> mux
 //
-//   - logging: per-request method/path log + structured trace correlation
-//   - tenantContext: extracts X-Tenant-Id; rejects /api/* without it
-//   - traceparent: extracts and echoes the W3C traceparent header
+//	  - logging: per-request method/path log + structured trace correlation
+//	  - tenantContext: extracts X-Tenant-Id; rejects /api/* without it
+//	  - traceparent: extracts and echoes the W3C traceparent header
 package httpadapter
 
 import (

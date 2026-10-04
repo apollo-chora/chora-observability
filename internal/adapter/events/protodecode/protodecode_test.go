@@ -10,11 +10,11 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"time"
 
-	commonv1 "github.com/locoroco-git/Chora-LMS/chora-contracts/gen/go/chora/common/v1"
-	consumptionv1 "github.com/locoroco-git/Chora-LMS/chora-contracts/gen/go/chora/consumption/v1"
-	tenancyv1 "github.com/locoroco-git/Chora-LMS/chora-contracts/gen/go/chora/tenancy/v1"
+	commonv1 "github.com/apollo-chora/chora-contracts/gen/go/chora/common/v1"
+	consumptionv1 "github.com/apollo-chora/chora-contracts/gen/go/chora/consumption/v1"
+	tenancyv1 "github.com/apollo-chora/chora-contracts/gen/go/chora/tenancy/v1"
 
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/events/protodecode"
+	"github.com/apollo-chora/chora-observability/internal/adapter/events/protodecode"
 )
 
 func TestDecode_ExpAwarded_Binary(t *testing.T) {

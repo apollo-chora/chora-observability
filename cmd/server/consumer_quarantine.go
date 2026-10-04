@@ -11,12 +11,12 @@
 // Per the ADR-167 Plane-4 fail-loud directive, a malformed inbound event must
 // ALSO be:
 //
-//   1. routed to the LOCAL dead-letter store (outbox_dead_letters) so it is
-//      queryable + replayable from chora_observability without touching the
-//      broker, AND
-//   2. logged at ERROR level with the event id + reason (never swallowed), AND
-//   3. surfaced as a governance alert (chora.observability.sink_failure.recorded.v1)
-//      via the same AlertSink the dispatcher uses.
+//  1. routed to the LOCAL dead-letter store (outbox_dead_letters) so it is
+//     queryable + replayable from chora_observability without touching the
+//     broker, AND
+//  2. logged at ERROR level with the event id + reason (never swallowed), AND
+//  3. surfaced as a governance alert (chora.observability.sink_failure.recorded.v1)
+//     via the same AlertSink the dispatcher uses.
 //
 // The wrapper still returns the original error to the binding so the broker
 // ALSO Nacks (defence in depth — the local quarantine and the broker DLQ are
@@ -35,8 +35,8 @@ import (
 	"log"
 	"time"
 
-	cgcpubsub "github.com/5007-Capstone/chora/libs/chora-go-common/pubsub"
-	obsoutbox "github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/outbox"
+	cgcpubsub "github.com/apollo-chora/chora-common/pubsub"
+	obsoutbox "github.com/apollo-chora/chora-observability/internal/adapter/outbox"
 )
 
 // quarantiningHandler wraps a downstream pubsub.Handler with the ADR-167
@@ -219,6 +219,12 @@ func truncateStr(s string, n int) string {
 // obsoutbox.Logger when no structured logger is injected.
 type defaultQuarantineLogger struct{}
 
-func (defaultQuarantineLogger) Infof(format string, args ...any)  { log.Printf("INFO  "+format, args...) }
-func (defaultQuarantineLogger) Warnf(format string, args ...any)  { log.Printf("WARN  "+format, args...) }
-func (defaultQuarantineLogger) Errorf(format string, args ...any) { log.Printf("ERROR "+format, args...) }
+func (defaultQuarantineLogger) Infof(format string, args ...any) {
+	log.Printf("INFO  "+format, args...)
+}
+func (defaultQuarantineLogger) Warnf(format string, args ...any) {
+	log.Printf("WARN  "+format, args...)
+}
+func (defaultQuarantineLogger) Errorf(format string, args ...any) {
+	log.Printf("ERROR "+format, args...)
+}

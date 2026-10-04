@@ -26,14 +26,14 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	commonenvelope "github.com/5007-Capstone/chora/libs/chora-go-common/envelope"
-	"github.com/5007-Capstone/chora/libs/chora-go-common/idempotent"
-	cgcpubsub "github.com/5007-Capstone/chora/libs/chora-go-common/pubsub"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/events"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/inmem"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/decision"
-	commonv1 "github.com/locoroco-git/Chora-LMS/chora-contracts/gen/go/chora/common/v1"
-	observabilityv1 "github.com/locoroco-git/Chora-LMS/chora-contracts/gen/go/chora/observability/v1"
+	commonenvelope "github.com/apollo-chora/chora-common/envelope"
+	"github.com/apollo-chora/chora-common/idempotent"
+	cgcpubsub "github.com/apollo-chora/chora-common/pubsub"
+	commonv1 "github.com/apollo-chora/chora-contracts/gen/go/chora/common/v1"
+	observabilityv1 "github.com/apollo-chora/chora-contracts/gen/go/chora/observability/v1"
+	"github.com/apollo-chora/chora-observability/internal/adapter/events"
+	"github.com/apollo-chora/chora-observability/internal/adapter/inmem"
+	"github.com/apollo-chora/chora-observability/internal/domain/decision"
 )
 
 // pricingYAMLPathForTest resolves the service's config/pricing.yaml relative to

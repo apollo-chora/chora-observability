@@ -11,11 +11,11 @@
 //
 // Decode strategy
 // ---------------
-// 1. If the topic is registered for binary decoding (see binaryDecoders),
-//    attempt proto.Unmarshal first. On success, project the proto message
-//    into a snake_case map[string]any compatible with the legacy JSON shape.
-// 2. On binary failure (or unregistered topic), fall back to json.Unmarshal.
-// 3. On both-fail, return a wrapped error.
+//  1. If the topic is registered for binary decoding (see binaryDecoders),
+//     attempt proto.Unmarshal first. On success, project the proto message
+//     into a snake_case map[string]any compatible with the legacy JSON shape.
+//  2. On binary failure (or unregistered topic), fall back to json.Unmarshal.
+//  3. On both-fail, return a wrapped error.
 package protodecode
 
 import (
@@ -28,9 +28,9 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	commonv1 "github.com/locoroco-git/Chora-LMS/chora-contracts/gen/go/chora/common/v1"
-	consumptionv1 "github.com/locoroco-git/Chora-LMS/chora-contracts/gen/go/chora/consumption/v1"
-	tenancyv1 "github.com/locoroco-git/Chora-LMS/chora-contracts/gen/go/chora/tenancy/v1"
+	commonv1 "github.com/apollo-chora/chora-contracts/gen/go/chora/common/v1"
+	consumptionv1 "github.com/apollo-chora/chora-contracts/gen/go/chora/consumption/v1"
+	tenancyv1 "github.com/apollo-chora/chora-contracts/gen/go/chora/tenancy/v1"
 )
 
 // ErrEmptyPayload is returned when the inbound bytes are empty.
@@ -133,7 +133,7 @@ func DecodePayloadMap(topic string, payload []byte) (map[string]any, error) {
 // Field precedence (high → low):
 //  1. Binary proto Envelope (when payload is binary-decodable for this topic)
 //  2. Pub/Sub msg.Attributes (publisher's canonical envelope projection per
-//     libs/chora-go-common/pubsub.envelopeAttributes)
+//     chora-common/pubsub.envelopeAttributes)
 //  3. JSON payload body
 //
 // Binary always wins because the producer flipped to binary AS the canonical
@@ -179,8 +179,8 @@ func DecodePayloadMapWithAttrs(topic string, payload []byte, attrs map[string]st
 //   - attrs["event_id"]      → out["event_id"]
 //   - attrs["tenant_id"]     → out["tenant_id"]
 //   - attrs["gcid"]          → out["owner_gcid"] (Familiar events use
-//                              owner_gcid; gcid is the canonical envelope
-//                              field name on the wire)
+//     owner_gcid; gcid is the canonical envelope
+//     field name on the wire)
 //   - attrs["traceparent"]   → out["traceparent"]
 //   - attrs["tracestate"]    → out["tracestate"]
 //   - attrs["occurred_at"]   → out["occurred_at"]

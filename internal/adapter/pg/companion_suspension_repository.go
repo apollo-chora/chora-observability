@@ -37,13 +37,13 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	commonv1 "github.com/locoroco-git/Chora-LMS/chora-contracts/gen/go/chora/common/v1"
-	governancev1 "github.com/locoroco-git/Chora-LMS/chora-contracts/gen/go/chora/governance/v1"
+	commonv1 "github.com/apollo-chora/chora-contracts/gen/go/chora/common/v1"
+	governancev1 "github.com/apollo-chora/chora-contracts/gen/go/chora/governance/v1"
 
-	cgctracing "github.com/5007-Capstone/chora/libs/chora-go-common/tracing"
-	cs "github.com/5007-Capstone/chora/services/chora-observability/internal/domain/companionsuspension"
+	cgctracing "github.com/apollo-chora/chora-common/tracing"
+	cs "github.com/apollo-chora/chora-observability/internal/domain/companionsuspension"
 
-	"github.com/5007-Capstone/chora/libs/chora-go-common/env"
+	"github.com/apollo-chora/chora-common/env"
 )
 
 // TopicCompanionSuspensionChanged is the ADR-252 D4 audit topic (ADR-254 D4:
@@ -58,7 +58,6 @@ const (
 	companionSuspensionImdaStage     = "runtime"
 )
 
-//
 // Was a hardcoded literal until 2026-09-02 (CHO-2419). No manifest could reach
 // it, so a second org stamped every event with chora-489812 and any consumer
 // filtering on source_project would have been filtering on a lie.

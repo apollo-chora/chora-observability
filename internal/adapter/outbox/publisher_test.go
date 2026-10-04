@@ -22,8 +22,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/outbox"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/ledger"
+	"github.com/apollo-chora/chora-observability/internal/adapter/outbox"
+	"github.com/apollo-chora/chora-observability/internal/domain/ledger"
 )
 
 func makeOutboxRecord(eventID, tenant, gcid string, occurred time.Time) ledger.OutboxRecord {

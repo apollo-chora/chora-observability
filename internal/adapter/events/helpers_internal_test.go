@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
-	consumptionv1 "github.com/locoroco-git/Chora-LMS/chora-contracts/gen/go/chora/consumption/v1"
+	consumptionv1 "github.com/apollo-chora/chora-contracts/gen/go/chora/consumption/v1"
 
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/config"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/decision"
+	"github.com/apollo-chora/chora-observability/internal/config"
+	"github.com/apollo-chora/chora-observability/internal/domain/decision"
 )
 
 func TestFieldAccessors_TolerateWireShapes(t *testing.T) {
@@ -165,4 +165,6 @@ func (n *noopClosureRepo) IsPseudonymised(_ context.Context, _, _ string) (bool,
 
 type noopClosurePub struct{}
 
-func (n *noopClosurePub) Publish(_ string, _, _, _ string, _ map[string]interface{}) error { return nil }
+func (n *noopClosurePub) Publish(_ string, _, _, _ string, _ map[string]interface{}) error {
+	return nil
+}

@@ -14,8 +14,8 @@ import (
 	"testing"
 	"time"
 
-	cgcpubsub "github.com/5007-Capstone/chora/libs/chora-go-common/pubsub"
-	obsoutbox "github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/outbox"
+	cgcpubsub "github.com/apollo-chora/chora-common/pubsub"
+	obsoutbox "github.com/apollo-chora/chora-observability/internal/adapter/outbox"
 )
 
 // ---------------------------------------------------------------------------
@@ -78,7 +78,9 @@ func TestQuarantineIdentity_SynthesisesWhenAttrsAbsent(t *testing.T) {
 // dupStore rejects every Insert as a duplicate idempotency key.
 type dupStore struct{}
 
-func (dupStore) Insert(context.Context, obsoutbox.Row) error { return obsoutbox.ErrDuplicateIdempotencyKey }
+func (dupStore) Insert(context.Context, obsoutbox.Row) error {
+	return obsoutbox.ErrDuplicateIdempotencyKey
+}
 func (dupStore) FetchPending(context.Context, int) ([]obsoutbox.Row, error) { return nil, nil }
 func (dupStore) MarkPublished(context.Context, string) error                { return nil }
 func (dupStore) MarkFailed(context.Context, string, string) error           { return nil }

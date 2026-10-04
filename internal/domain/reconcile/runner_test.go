@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/bigquery"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/billing"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/reconcile"
+	"github.com/apollo-chora/chora-observability/internal/adapter/bigquery"
+	"github.com/apollo-chora/chora-observability/internal/adapter/billing"
+	"github.com/apollo-chora/chora-observability/internal/domain/reconcile"
 )
 
 // stubEventSink records emitted events.

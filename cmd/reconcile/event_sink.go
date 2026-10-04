@@ -4,7 +4,7 @@
 // Before this, cmd/reconcile always used a logging-only stub. This loader
 // resolves a REAL Pub/Sub publisher on
 // chora.governance.payment_reconciliation.anomaly.v1 (+ the degraded topic)
-// when the broker is configured, reusing the same chora-go-common/pubsub
+// when the broker is configured, reusing the same chora-common/pubsub
 // CloudPublisher the main server's outbox dispatcher uses.
 //
 // Configuration (env-only per `secrets-and-env` / no-inline-config):
@@ -29,9 +29,9 @@ import (
 	"os"
 	"strings"
 
-	cgcpubsub "github.com/5007-Capstone/chora/libs/chora-go-common/pubsub"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/reconcilepublish"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/reconcile"
+	cgcpubsub "github.com/apollo-chora/chora-common/pubsub"
+	"github.com/apollo-chora/chora-observability/internal/adapter/reconcilepublish"
+	"github.com/apollo-chora/chora-observability/internal/domain/reconcile"
 )
 
 // errPubSubRequired is returned when RECONCILE_REQUIRE_PUBSUB is asserted but

@@ -32,9 +32,9 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	cgcdb "github.com/5007-Capstone/chora/libs/chora-go-common/db"
-	cgcpubsub "github.com/5007-Capstone/chora/libs/chora-go-common/pubsub"
-	cgcsecrets "github.com/5007-Capstone/chora/libs/chora-go-common/secrets"
+	cgcdb "github.com/apollo-chora/chora-common/db"
+	cgcpubsub "github.com/apollo-chora/chora-common/pubsub"
+	cgcsecrets "github.com/apollo-chora/chora-common/secrets"
 )
 
 func bootstrapDBPool(ctx context.Context) (*pgxpool.Pool, func()) {

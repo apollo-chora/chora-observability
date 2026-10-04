@@ -20,7 +20,7 @@ import (
 	"strings"
 	"time"
 
-	fg "github.com/5007-Capstone/chora/services/chora-observability/internal/domain/familiargrowth"
+	fg "github.com/apollo-chora/chora-observability/internal/domain/familiargrowth"
 )
 
 // FamiliarGrowthHandler wraps the familiargrowth.Repository for HTTP.

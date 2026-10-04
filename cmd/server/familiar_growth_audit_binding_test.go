@@ -13,9 +13,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/inmem"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/subscribers"
-	fg "github.com/5007-Capstone/chora/services/chora-observability/internal/domain/familiargrowth"
+	"github.com/apollo-chora/chora-observability/internal/adapter/inmem"
+	"github.com/apollo-chora/chora-observability/internal/adapter/subscribers"
+	fg "github.com/apollo-chora/chora-observability/internal/domain/familiargrowth"
 )
 
 func growthSubscriberForBindings(t *testing.T) *subscribers.FamiliarGrowthAuditSubscriber {

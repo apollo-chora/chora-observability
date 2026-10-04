@@ -17,7 +17,7 @@
 // exactly one topic, so the topic is known statically at wire time. The push
 // handler this replaces derived the topic from msg.Attributes["topic"] and
 // silently ack-and-dropped anything it could not match. That attribute is
-// stamped by CloudPublisher (libs/chora-go-common/pubsub.Publish) but was added
+// stamped by CloudPublisher (chora-common/pubsub.Publish) but was added
 // AFTER the oldest events on these subscriptions were published, so an
 // attribute-derived topic is not safe for the existing backlog: it would have
 // discarded precisely the events this lane exists to audit.
@@ -41,10 +41,10 @@ import (
 	"strings"
 	"time"
 
-	cgcpubsub "github.com/5007-Capstone/chora/libs/chora-go-common/pubsub"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/events/protodecode"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/subscribers"
-	fg "github.com/5007-Capstone/chora/services/chora-observability/internal/domain/familiargrowth"
+	cgcpubsub "github.com/apollo-chora/chora-common/pubsub"
+	"github.com/apollo-chora/chora-observability/internal/adapter/events/protodecode"
+	"github.com/apollo-chora/chora-observability/internal/adapter/subscribers"
+	fg "github.com/apollo-chora/chora-observability/internal/domain/familiargrowth"
 )
 
 // FamiliarGrowthAuditPullHandler adapts the FamiliarGrowthAuditSubscriber to a

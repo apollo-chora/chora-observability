@@ -12,9 +12,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/inmem"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/decision"
-	ra "github.com/5007-Capstone/chora/services/chora-observability/internal/domain/ritualaudit"
+	"github.com/apollo-chora/chora-observability/internal/adapter/inmem"
+	"github.com/apollo-chora/chora-observability/internal/domain/decision"
+	ra "github.com/apollo-chora/chora-observability/internal/domain/ritualaudit"
 )
 
 const (
@@ -67,8 +67,8 @@ func TestInmemAggregatePromptUsage_GroupsAndFilters(t *testing.T) {
 		t.Fatalf("AggregatePromptUsage: %v", err)
 	}
 	type key struct {
-		hasSet, isCampaign      bool
-		version, source, agent  string
+		hasSet, isCampaign     bool
+		version, source, agent string
 	}
 	got := map[key]decision.PromptUsageGroup{}
 	var total int64

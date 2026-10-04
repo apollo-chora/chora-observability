@@ -23,10 +23,10 @@ import (
 
 // Config is the parsed pricing-config YAML.
 type Config struct {
-	Version       string             `yaml:"version"`
-	EffectiveFrom time.Time          `yaml:"effective_from"`
-	Prices        map[string]Price   `yaml:"prices"`
-	Reconciliation Reconciliation    `yaml:"reconciliation"`
+	Version        string           `yaml:"version"`
+	EffectiveFrom  time.Time        `yaml:"effective_from"`
+	Prices         map[string]Price `yaml:"prices"`
+	Reconciliation Reconciliation   `yaml:"reconciliation"`
 }
 
 // Price is one model's pricing. Either per-1k-token (managed) or
@@ -36,20 +36,20 @@ type Price struct {
 	OutputPer1k float64 `yaml:"output_per_1k"`
 	CachePer1k  float64 `yaml:"cache_per_1k"`
 
-	PricingModel              string  `yaml:"pricing_model"`
-	GPUClass                  string  `yaml:"gpu_class"`
-	AmortizedPerGPUHour       float64 `yaml:"amortized_per_gpu_hour"`
-	TokensPerGPUHourEstimate  int64   `yaml:"tokens_per_gpu_hour_estimate"`
+	PricingModel             string  `yaml:"pricing_model"`
+	GPUClass                 string  `yaml:"gpu_class"`
+	AmortizedPerGPUHour      float64 `yaml:"amortized_per_gpu_hour"`
+	TokensPerGPUHourEstimate int64   `yaml:"tokens_per_gpu_hour_estimate"`
 
 	PassThrough bool `yaml:"pass_through"`
 }
 
 // Reconciliation captures the nightly job parameters.
 type Reconciliation struct {
-	Cron             string `yaml:"cron"`
-	LookbackDays     int    `yaml:"lookback_days"`
-	BigQueryDataset  string `yaml:"bigquery_dataset"`
-	BigQueryTable    string `yaml:"bigquery_table"`
+	Cron            string `yaml:"cron"`
+	LookbackDays    int    `yaml:"lookback_days"`
+	BigQueryDataset string `yaml:"bigquery_dataset"`
+	BigQueryTable   string `yaml:"bigquery_table"`
 }
 
 // LoadFile reads + parses the YAML at path.

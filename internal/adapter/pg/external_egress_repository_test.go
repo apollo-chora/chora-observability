@@ -14,8 +14,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/pg"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/externalegress"
+	"github.com/apollo-chora/chora-observability/internal/adapter/pg"
+	"github.com/apollo-chora/chora-observability/internal/domain/externalegress"
 )
 
 const (

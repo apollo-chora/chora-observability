@@ -26,8 +26,8 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/5007-Capstone/chora/libs/chora-go-common/idempotent"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/externalegress"
+	"github.com/apollo-chora/chora-common/idempotent"
+	"github.com/apollo-chora/chora-observability/internal/domain/externalegress"
 )
 
 // TopicExternalEgressPolicyUpdated is the source topic (chora-tenancy publishes).

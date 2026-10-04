@@ -14,9 +14,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/5007-Capstone/chora/libs/chora-go-common/idempotent"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/analytics/eventaggregator"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/analytics/eventsubscriber"
+	"github.com/apollo-chora/chora-common/idempotent"
+	"github.com/apollo-chora/chora-observability/internal/analytics/eventaggregator"
+	"github.com/apollo-chora/chora-observability/internal/analytics/eventsubscriber"
 )
 
 func newEnv(t *testing.T, id string) eventaggregator.Envelope {

@@ -31,8 +31,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/5007-Capstone/chora/libs/chora-go-common/idempotent"
-	fg "github.com/5007-Capstone/chora/services/chora-observability/internal/domain/familiargrowth"
+	"github.com/apollo-chora/chora-common/idempotent"
+	fg "github.com/apollo-chora/chora-observability/internal/domain/familiargrowth"
 )
 
 // InboxTTL is the dedupe-key retention window for inbound events. 7d is the
@@ -55,16 +55,16 @@ type EvidencePublisher interface {
 
 // EvidenceEmit is the payload the subscriber hands to EvidencePublisher.
 type EvidenceEmit struct {
-	EvidenceID      string         // UUIDv7
-	TenantID        string         // tenant_id (UUID string)
-	GCID            string         // owner gcid (UUID string; may be empty for system events)
-	EvidenceType    string         // e.g. "familiar_growth.exp_awarded"
-	SourceTopic     string         // canonical inbound topic
-	SourceEventID   string         // UUIDv7 of the inbound event
-	IMDADimension   string         // accountability | transparency
-	LifecycleStage  string         // runtime
-	Traceparent     string         // W3C traceparent propagated from inbound
-	OccurredAt      time.Time
+	EvidenceID       string // UUIDv7
+	TenantID         string // tenant_id (UUID string)
+	GCID             string // owner gcid (UUID string; may be empty for system events)
+	EvidenceType     string // e.g. "familiar_growth.exp_awarded"
+	SourceTopic      string // canonical inbound topic
+	SourceEventID    string // UUIDv7 of the inbound event
+	IMDADimension    string // accountability | transparency
+	LifecycleStage   string // runtime
+	Traceparent      string // W3C traceparent propagated from inbound
+	OccurredAt       time.Time
 	AdditionalFields map[string]any
 }
 
@@ -94,9 +94,9 @@ type FamiliarGrowthEvent struct {
 	Payload map[string]any
 
 	// exp_awarded specific.
-	ExpDelta    int32
-	ExpSource   string  // atom_session | ebbinghaus_review | conv_turn | ...
-	OccurredAt  time.Time
+	ExpDelta   int32
+	ExpSource  string // atom_session | ebbinghaus_review | conv_turn | ...
+	OccurredAt time.Time
 
 	// stage_up specific.
 	StageFrom int32
@@ -111,7 +111,7 @@ type FamiliarGrowthEvent struct {
 	DistributionSnapshot map[string]any
 
 	// egg_purchased specific.
-	PurchaseSource string  // purchase | subscription_inclusion | tenant_grant | trial
+	PurchaseSource string // purchase | subscription_inclusion | tenant_grant | trial
 
 	// payment_succeeded specific.
 	AmountCents int64
@@ -250,10 +250,10 @@ func (s *FamiliarGrowthAuditSubscriber) process(ctx context.Context, ev Familiar
 			StageUpsDelta:   1,
 		}
 		s.recordSpan(ctx, "familiar_growth.stage_up", map[string]any{
-			"chora.tenant_id":     ev.TenantID,
-			"chora.familiar_id":   ev.FamiliarID,
+			"chora.tenant_id":       ev.TenantID,
+			"chora.familiar_id":     ev.FamiliarID,
 			"chora.growth.stage_to": ev.StageTo,
-			"chora.imda.d1":       true,
+			"chora.imda.d1":         true,
 		})
 	case fg.TopicBreedRevealed:
 		dimension = fg.IMDADimensionTransparency

@@ -31,11 +31,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/analytics/cohort"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/analytics/dashboard"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/analytics/eventaggregator"
-	analyticsinmem "github.com/5007-Capstone/chora/services/chora-observability/internal/analytics/inmem"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/analytics/retention"
+	"github.com/apollo-chora/chora-observability/internal/analytics/cohort"
+	"github.com/apollo-chora/chora-observability/internal/analytics/dashboard"
+	"github.com/apollo-chora/chora-observability/internal/analytics/eventaggregator"
+	analyticsinmem "github.com/apollo-chora/chora-observability/internal/analytics/inmem"
+	"github.com/apollo-chora/chora-observability/internal/analytics/retention"
 )
 
 // analyticsHandler holds the analytics composite store. Wired by

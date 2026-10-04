@@ -26,8 +26,8 @@ type Act struct {
 
 // Tick is a row of the cumulative output: per-act cumulative running total.
 type Tick struct {
-	Act                 Act   `json:"act"`
-	CumulativeUsdMicros int64 `json:"cumulative_cost_usd_micros"`
+	Act                 Act    `json:"act"`
+	CumulativeUsdMicros int64  `json:"cumulative_cost_usd_micros"`
 	CumulativeUsd       string `json:"cumulative_cost_usd"`
 }
 

@@ -7,7 +7,7 @@ import (
 
 	gbq "cloud.google.com/go/bigquery"
 
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/eval"
+	"github.com/apollo-chora/chora-observability/internal/domain/eval"
 )
 
 func valid(f float64) gbq.NullFloat64 { return gbq.NullFloat64{Float64: f, Valid: true} }

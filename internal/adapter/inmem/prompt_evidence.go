@@ -9,8 +9,8 @@ import (
 	"context"
 	"sort"
 
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/decision"
-	ra "github.com/5007-Capstone/chora/services/chora-observability/internal/domain/ritualaudit"
+	"github.com/apollo-chora/chora-observability/internal/domain/decision"
+	ra "github.com/apollo-chora/chora-observability/internal/domain/ritualaudit"
 )
 
 // promptUsageKey mirrors the pg GROUP BY columns.
@@ -82,7 +82,7 @@ func (r *DecisionRepository) AggregatePromptUsage(_ context.Context, tenantID st
 
 // stampPromptVersion reads the per-step prompt version from one stamp map:
 // the canonical snake_case 'prompt_version' first (CHO-2136 wire), then the
-// legacy Go-field-name 'PromptVersion' (pre-CHO-2136 JSON rows). Returns ''
+// legacy Go-field-name 'PromptVersion' (pre-CHO-2136 JSON rows). Returns ”
 // when neither carries a non-empty string.
 func stampPromptVersion(stamp map[string]any) string {
 	if v, ok := stamp["prompt_version"].(string); ok && v != "" {

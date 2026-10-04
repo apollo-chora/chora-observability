@@ -20,7 +20,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/decision"
+	"github.com/apollo-chora/chora-observability/internal/domain/decision"
 )
 
 // phase6EventsHandler is the GET /events?tenant_id=X handler.

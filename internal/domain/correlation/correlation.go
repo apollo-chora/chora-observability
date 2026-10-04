@@ -18,7 +18,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/ledger"
+	"github.com/apollo-chora/chora-observability/internal/domain/ledger"
 )
 
 // Correlation is the TraceCorrelation aggregate root.

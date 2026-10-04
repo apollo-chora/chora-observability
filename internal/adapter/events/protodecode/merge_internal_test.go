@@ -8,7 +8,7 @@ import (
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	commonv1 "github.com/locoroco-git/Chora-LMS/chora-contracts/gen/go/chora/common/v1"
+	commonv1 "github.com/apollo-chora/chora-contracts/gen/go/chora/common/v1"
 )
 
 func TestMergeEnvelope_NilGuard(t *testing.T) {
@@ -24,11 +24,11 @@ func TestMergeEnvelope_ProjectsAllFields(t *testing.T) {
 	t.Parallel()
 	at := time.Date(2026, 5, 1, 12, 30, 45, 0, time.UTC)
 	env := &commonv1.EventEnvelope{
-		EventId:           "evt-1",
-		TenantId:          "t-1",
-		Gcid:              "g-1",
-		Traceparent:       "00-x-y-01",
-		OccurredAt:        timestamppb.New(at),
+		EventId:            "evt-1",
+		TenantId:           "t-1",
+		Gcid:               "g-1",
+		Traceparent:        "00-x-y-01",
+		OccurredAt:         timestamppb.New(at),
 		ChoraImdaDimension: "accountability",
 		ImdaLifecycleStage: "runtime",
 	}

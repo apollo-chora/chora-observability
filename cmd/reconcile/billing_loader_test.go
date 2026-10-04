@@ -14,8 +14,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/billing"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/reconcile"
+	"github.com/apollo-chora/chora-observability/internal/adapter/billing"
+	"github.com/apollo-chora/chora-observability/internal/domain/reconcile"
 )
 
 func withEnv(t *testing.T, kv map[string]string) {

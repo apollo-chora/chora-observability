@@ -10,7 +10,7 @@ package httpadapter
 import (
 	"net/http"
 
-	fg "github.com/5007-Capstone/chora/services/chora-observability/internal/domain/familiargrowth"
+	fg "github.com/apollo-chora/chora-observability/internal/domain/familiargrowth"
 )
 
 // WithFamiliarGrowthRepo enables the ADR-149 audit endpoints

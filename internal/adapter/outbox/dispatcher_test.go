@@ -21,9 +21,9 @@ import (
 	"testing"
 	"time"
 
-	cgcenvelope "github.com/5007-Capstone/chora/libs/chora-go-common/envelope"
+	cgcenvelope "github.com/apollo-chora/chora-common/envelope"
 
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/outbox"
+	"github.com/apollo-chora/chora-observability/internal/adapter/outbox"
 )
 
 type recordingBus struct {

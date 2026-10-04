@@ -8,8 +8,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/pg"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/ledger"
+	"github.com/apollo-chora/chora-observability/internal/adapter/pg"
+	"github.com/apollo-chora/chora-observability/internal/domain/ledger"
 )
 
 // stubQuerier captures the most recent Exec / QueryRow call + the tenant_id
@@ -63,9 +63,9 @@ func TestLedgerRepository_Append_EmitsInsertSQL(t *testing.T) {
 	gcid := uuid.NewString()
 
 	e, err := ledger.New(ledger.NewParams{
-		TenantID: tenant,
-		Gcid:     gcid,
-		ModelID:  "gemini-2.0-flash",
+		TenantID:     tenant,
+		Gcid:         gcid,
+		ModelID:      "gemini-2.0-flash",
 		PromptTokens: 100, CompletionTokens: 50,
 		CostUsdMicros: 1234,
 		TraceID:       "00000000000000000000000000000001",
@@ -107,9 +107,9 @@ func TestLedgerRepository_Append_EmitsInsertSQL(t *testing.T) {
 func TestLedgerRepository_Append_TenantScopedAndNormalised(t *testing.T) {
 	t.Parallel()
 	e, err := ledger.New(ledger.NewParams{
-		TenantID: "platform",
-		Gcid:     uuid.NewString(),
-		ModelID:  "vertex_ai/gemini-2.5-pro",
+		TenantID:     "platform",
+		Gcid:         uuid.NewString(),
+		ModelID:      "vertex_ai/gemini-2.5-pro",
 		PromptTokens: 100, CompletionTokens: 50,
 		CostUsdMicros: 1234,
 		TraceID:       "00000000000000000000000000000001",

@@ -19,8 +19,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/pg"
-	fg "github.com/5007-Capstone/chora/services/chora-observability/internal/domain/familiargrowth"
+	"github.com/apollo-chora/chora-observability/internal/adapter/pg"
+	fg "github.com/apollo-chora/chora-observability/internal/domain/familiargrowth"
 )
 
 // tenantTxStub captures Exec calls + the tenant id passed to the canonical

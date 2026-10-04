@@ -24,7 +24,7 @@ import (
 	"cloud.google.com/go/bigquery"
 	"google.golang.org/api/iterator"
 
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/eval"
+	"github.com/apollo-chora/chora-observability/internal/domain/eval"
 )
 
 // EvidenceClient reads the agent_eval_evidence view. Implements eval.Repository.

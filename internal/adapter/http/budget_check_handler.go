@@ -11,7 +11,7 @@ package httpadapter
 import (
 	"net/http"
 
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/ledger"
+	"github.com/apollo-chora/chora-observability/internal/domain/ledger"
 )
 
 // WithBudgetLookup wires the 3-level budget cascade for /api/token-usage/budget-check.

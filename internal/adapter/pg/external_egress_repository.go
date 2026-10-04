@@ -38,7 +38,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/externalegress"
+	"github.com/apollo-chora/chora-observability/internal/domain/externalegress"
 )
 
 // ExternalEgressRepo projects policy changes into external_egress_policy.

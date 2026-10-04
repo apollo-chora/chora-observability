@@ -38,7 +38,7 @@ import (
 // chora-consumption engine_warmup warmupSyntheticTenantID).
 //
 // The event envelope carries the string sentinel "platform" (blessed by
-// libs/chora-go-common/rls.ValidateTenantID), but the observability
+// chora-common/rls.ValidateTenantID), but the observability
 // read-model columns are UUID NOT NULL with a `current_setting(
 // 'chora.tenant_id', true)::uuid` RLS policy — `'platform'::uuid` fails the
 // cast. NormalizeTenantForRLS bridges the two at the adapter boundary.
@@ -86,7 +86,7 @@ type Querier interface {
 // validateTenantIDLiteral rejects values unsafe to interpolate into a
 // `SET LOCAL` statement (SET LOCAL is not parameterisable). Allows only
 // hex/UUID-shaped strings (alphanum + dash) — mirrors
-// libs/chora-go-common/rls.validateSafeIdentifier. The "platform" sentinel
+// chora-common/rls.validateSafeIdentifier. The "platform" sentinel
 // must be NormalizeTenantForRLS'd to NilTenantUUID before reaching here.
 func validateTenantIDLiteral(id string) error {
 	if id == "" {

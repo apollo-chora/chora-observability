@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/analytics/eventaggregator"
+	"github.com/apollo-chora/chora-observability/internal/analytics/eventaggregator"
 )
 
 func mustNewEnvelope(t *testing.T, tenant, gcid, topic string, occurred time.Time) eventaggregator.Envelope {

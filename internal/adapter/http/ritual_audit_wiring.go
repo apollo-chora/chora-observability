@@ -7,7 +7,7 @@ package httpadapter
 import (
 	"net/http"
 
-	ra "github.com/5007-Capstone/chora/services/chora-observability/internal/domain/ritualaudit"
+	ra "github.com/apollo-chora/chora-observability/internal/domain/ritualaudit"
 )
 
 // WithRitualAuditRepo enables GET /v1/audit/ritual-runs backed by the supplied

@@ -49,8 +49,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/agents"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/decision"
+	"github.com/apollo-chora/chora-observability/internal/domain/agents"
+	"github.com/apollo-chora/chora-observability/internal/domain/decision"
 )
 
 // defaultAgentsWindowDays is the aggregation window for the /o/agents view —

@@ -8,10 +8,10 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/5007-Capstone/chora/libs/chora-go-common/envelope"
-	cgcpubsub "github.com/5007-Capstone/chora/libs/chora-go-common/pubsub"
+	"github.com/apollo-chora/chora-common/envelope"
+	cgcpubsub "github.com/apollo-chora/chora-common/pubsub"
 
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/events"
+	"github.com/apollo-chora/chora-observability/internal/adapter/events"
 )
 
 // newPullFixture builds a fully-wired ClosureSubscriber on the in-memory

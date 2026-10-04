@@ -68,11 +68,11 @@ var ErrInvalidEnvelope = errors.New("invalid envelope")
 //
 // Topic format: chora.{domain}.{aggregate}.{event_type}.v{N}
 //
-//	  segment 0: literal "chora"
-//	  segment 1: domain ∈ 11 known names
-//	  segment 2: aggregate (snake_case)
-//	  segment 3: event_type (snake_case past tense)
-//	  segment 4: v{N} version (N ≥ 1)
+//	segment 0: literal "chora"
+//	segment 1: domain ∈ 11 known names
+//	segment 2: aggregate (snake_case)
+//	segment 3: event_type (snake_case past tense)
+//	segment 4: v{N} version (N ≥ 1)
 func NewEnvelope(p EnvelopeParams) (Envelope, error) {
 	if strings.TrimSpace(p.TenantID) == "" {
 		return Envelope{}, fmt.Errorf("%w: tenant_id required", ErrInvalidEnvelope)

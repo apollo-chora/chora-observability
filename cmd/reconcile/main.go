@@ -25,7 +25,7 @@
 //
 // Output: structured JSON log lines + (on anomaly) Pub/Sub event published
 // via the EventSink adapter (currently a stub that logs; Tier 2 swaps in the
-// chora-go-common/pubsub adapter).
+// chora-common/pubsub adapter).
 package main
 
 import (
@@ -38,8 +38,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/bigquery"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/reconcile"
+	"github.com/apollo-chora/chora-observability/internal/adapter/bigquery"
+	"github.com/apollo-chora/chora-observability/internal/domain/reconcile"
 )
 
 func main() {

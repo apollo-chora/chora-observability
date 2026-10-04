@@ -41,12 +41,12 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	commonv1 "github.com/locoroco-git/Chora-LMS/chora-contracts/gen/go/chora/common/v1"
-	governancev1 "github.com/locoroco-git/Chora-LMS/chora-contracts/gen/go/chora/governance/v1"
+	commonv1 "github.com/apollo-chora/chora-contracts/gen/go/chora/common/v1"
+	governancev1 "github.com/apollo-chora/chora-contracts/gen/go/chora/governance/v1"
 
-	cgctracing "github.com/5007-Capstone/chora/libs/chora-go-common/tracing"
-	obsoutbox "github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/outbox"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/subscribers"
+	cgctracing "github.com/apollo-chora/chora-common/tracing"
+	obsoutbox "github.com/apollo-chora/chora-observability/internal/adapter/outbox"
+	"github.com/apollo-chora/chora-observability/internal/adapter/subscribers"
 )
 
 // evidenceSchemaVersion is the envelope schema_version stamped on every

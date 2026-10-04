@@ -5,8 +5,8 @@
 // the running total. Canonical seed (15 acts in the comic; Act 16 is
 // epilogue with $0.00 added):
 //
-//   $0.12, $0.04, $0.05, $0.03, $0.04, $0.06, $0.02, $0.03,
-//   $0.07, $0.02, $0.03, $0.01, $0.04, $0.12, $0.08
+//	$0.12, $0.04, $0.05, $0.03, $0.04, $0.06, $0.02, $0.03,
+//	$0.07, $0.02, $0.03, $0.01, $0.04, $0.12, $0.08
 //
 // Sum = $0.76. We store as int64 micros (1e-6 USD) so values are
 // 120000, 40000, 50000, ..., summing to 760000.
@@ -16,7 +16,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/cost"
+	"github.com/apollo-chora/chora-observability/internal/domain/cost"
 )
 
 // SequelSeed is the canonical 15-act tick sequence from the comic, in micros.

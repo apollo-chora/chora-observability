@@ -12,14 +12,14 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	consumptionv1 "github.com/locoroco-git/Chora-LMS/chora-contracts/gen/go/chora/consumption/v1"
+	consumptionv1 "github.com/apollo-chora/chora-contracts/gen/go/chora/consumption/v1"
 
-	"github.com/5007-Capstone/chora/libs/chora-go-common/envelope"
-	"github.com/5007-Capstone/chora/libs/chora-go-common/idempotent"
-	cgcpubsub "github.com/5007-Capstone/chora/libs/chora-go-common/pubsub"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/events"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/inmem"
-	ra "github.com/5007-Capstone/chora/services/chora-observability/internal/domain/ritualaudit"
+	"github.com/apollo-chora/chora-common/envelope"
+	"github.com/apollo-chora/chora-common/idempotent"
+	cgcpubsub "github.com/apollo-chora/chora-common/pubsub"
+	"github.com/apollo-chora/chora-observability/internal/adapter/events"
+	"github.com/apollo-chora/chora-observability/internal/adapter/inmem"
+	ra "github.com/apollo-chora/chora-observability/internal/domain/ritualaudit"
 )
 
 const (
@@ -126,7 +126,7 @@ func TestRitualRunAuditConsumer_IdempotentDoubleDelivery(t *testing.T) {
 func TestRitualRunAuditConsumer_RejectsMissingRequired(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
-		name  string
+		name   string
 		mutate func(*events.RitualRunCompletedEvent)
 	}{
 		{"missing event_id", func(e *events.RitualRunCompletedEvent) { e.SourceEventID = "" }},
@@ -261,7 +261,7 @@ func TestRitualRunAuditPullHandler_DecodesBinaryProtoPayload(t *testing.T) {
 	body, err := proto.Marshal(&consumptionv1.RitualRunCompleted{
 		RunId:         ritRunID,
 		RitualId:      ritRitualID,
-		CompanionId:    ritFamiliar,
+		CompanionId:   ritFamiliar,
 		OwnerGcid:     "should-be-overridden-by-envelope",
 		RevisionNo:    3,
 		TriggerSource: "on_map_open",

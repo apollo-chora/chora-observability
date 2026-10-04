@@ -3,7 +3,7 @@ package familiargrowth_test
 import (
 	"testing"
 
-	fg "github.com/5007-Capstone/chora/services/chora-observability/internal/domain/familiargrowth"
+	fg "github.com/apollo-chora/chora-observability/internal/domain/familiargrowth"
 )
 
 func TestChiSquare_PerfectFit(t *testing.T) {

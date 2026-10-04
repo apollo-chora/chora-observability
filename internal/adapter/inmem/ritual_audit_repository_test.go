@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/inmem"
-	ra "github.com/5007-Capstone/chora/services/chora-observability/internal/domain/ritualaudit"
+	"github.com/apollo-chora/chora-observability/internal/adapter/inmem"
+	ra "github.com/apollo-chora/chora-observability/internal/domain/ritualaudit"
 )
 
 func TestRitualAuditRepository_IngestAndList(t *testing.T) {

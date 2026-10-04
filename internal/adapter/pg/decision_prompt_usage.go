@@ -11,7 +11,7 @@
 //   - COALESCE(prompt_conditions ? 'set_mode', false): a row with NULL
 //     conditions has no set_mode key (counts as the single-question AI-assist
 //     use case, not as SQL NULL that would silently drop the row).
-//   - COALESCE(prompt_conditions->>'request_surface', '') = 'campaign'
+//   - COALESCE(prompt_conditions->>'request_surface', ”) = 'campaign'
 //     matches the daily-dose surface; an absent surface is false, which also
 //     matches the batch bucket's IS DISTINCT FROM 'campaign' reading.
 //
@@ -24,7 +24,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/decision"
+	"github.com/apollo-chora/chora-observability/internal/domain/decision"
 )
 
 // AggregatePromptUsage implements decision.PromptUsageRepository.

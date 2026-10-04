@@ -10,12 +10,12 @@ import (
 	"testing"
 	"time"
 
-	httpadapter "github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/http"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/inmem"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/agents"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/correlation"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/decision"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/ledger"
+	httpadapter "github.com/apollo-chora/chora-observability/internal/adapter/http"
+	"github.com/apollo-chora/chora-observability/internal/adapter/inmem"
+	"github.com/apollo-chora/chora-observability/internal/domain/agents"
+	"github.com/apollo-chora/chora-observability/internal/domain/correlation"
+	"github.com/apollo-chora/chora-observability/internal/domain/decision"
+	"github.com/apollo-chora/chora-observability/internal/domain/ledger"
 )
 
 // testRegistry builds a small registry matching the canonical registry.json

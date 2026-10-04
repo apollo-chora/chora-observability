@@ -8,7 +8,7 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/ledger"
+	"github.com/apollo-chora/chora-observability/internal/domain/ledger"
 )
 
 // LedgerRepository is a goroutine-safe append-only repository.

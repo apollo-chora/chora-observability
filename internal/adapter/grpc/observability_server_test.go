@@ -16,33 +16,33 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	observabilityv1 "github.com/locoroco-git/Chora-LMS/chora-contracts/gen/go/chora/services/observability/v1"
+	observabilityv1 "github.com/apollo-chora/chora-contracts/gen/go/chora/services/observability/v1"
 
-	grpcadapter "github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/grpc"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/inmem"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/correlation"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/decision"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/ledger"
+	grpcadapter "github.com/apollo-chora/chora-observability/internal/adapter/grpc"
+	"github.com/apollo-chora/chora-observability/internal/adapter/inmem"
+	"github.com/apollo-chora/chora-observability/internal/domain/correlation"
+	"github.com/apollo-chora/chora-observability/internal/domain/decision"
+	"github.com/apollo-chora/chora-observability/internal/domain/ledger"
 )
 
 const (
-	grpcTenant   = "01970000-0000-7000-8000-000000000001"
-	grpcGcid     = "01970000-0000-7000-9000-000000000001"
-	grpcAgid     = "01970000-0000-7000-a000-000000000001"
-	grpcCorrID   = "01970000-0000-7000-b000-000000000001"
-	grpcTraceID  = "00000000000000000000000000000001"
-	grpcSpanID   = "0000000000000001"
-	grpcChild1   = "0000000000000002"
-	grpcChild2   = "0000000000000003"
-	grpcModel    = "gemini-3-pro"
+	grpcTenant  = "01970000-0000-7000-8000-000000000001"
+	grpcGcid    = "01970000-0000-7000-9000-000000000001"
+	grpcAgid    = "01970000-0000-7000-a000-000000000001"
+	grpcCorrID  = "01970000-0000-7000-b000-000000000001"
+	grpcTraceID = "00000000000000000000000000000001"
+	grpcSpanID  = "0000000000000001"
+	grpcChild1  = "0000000000000002"
+	grpcChild2  = "0000000000000003"
+	grpcModel   = "gemini-3-pro"
 )
 
 // testHarness bundles the in-memory repos backing a grpc server.
 type testHarness struct {
-	ledgers  *inmem.LedgerRepository
+	ledgers   *inmem.LedgerRepository
 	decisions *inmem.DecisionRepository
-	corrs    *inmem.CorrelationRepository
-	srv      *grpcadapter.ObservabilityServer
+	corrs     *inmem.CorrelationRepository
+	srv       *grpcadapter.ObservabilityServer
 }
 
 func newTestHarness(t *testing.T) *testHarness {
@@ -95,15 +95,21 @@ func (s *stubDecisionRepo) Append(_ context.Context, _ *decision.Log) error { re
 func (s *stubDecisionRepo) List(_ context.Context, _ string, _ decision.ListFilter) ([]*decision.Log, error) {
 	return nil, s.listErr
 }
-func (s *stubDecisionRepo) GetByID(_ context.Context, _, _ string) (*decision.Log, error) { return nil, s.getErr }
-func (s *stubDecisionRepo) Count(_ context.Context, _ string, _, _ time.Time) (int64, error) { return 0, nil }
+func (s *stubDecisionRepo) GetByID(_ context.Context, _, _ string) (*decision.Log, error) {
+	return nil, s.getErr
+}
+func (s *stubDecisionRepo) Count(_ context.Context, _ string, _, _ time.Time) (int64, error) {
+	return 0, nil
+}
 
 type stubCorrelationRepo struct {
 	registerErr error
 	getErr      error
 }
 
-func (s *stubCorrelationRepo) Register(_ context.Context, _ *correlation.Correlation) error { return s.registerErr }
+func (s *stubCorrelationRepo) Register(_ context.Context, _ *correlation.Correlation) error {
+	return s.registerErr
+}
 func (s *stubCorrelationRepo) Get(_ context.Context, _, _ string) (*correlation.Correlation, error) {
 	return nil, s.getErr
 }
@@ -405,9 +411,9 @@ func TestAppendAgentDecision(t *testing.T) {
 
 	req := &observabilityv1.AppendAgentDecisionRequest{
 		TenantId: grpcTenant, Agid: grpcAgid,
-		DecisionType: observabilityv1.AgentDecisionType_AGENT_DECISION_TYPE_ESCALATE,
-		Reason:       "pii detected",
-		RiskTier:     observabilityv1.AgentRiskTier_AGENT_RISK_TIER_HIGH,
+		DecisionType:  observabilityv1.AgentDecisionType_AGENT_DECISION_TYPE_ESCALATE,
+		Reason:        "pii detected",
+		RiskTier:      observabilityv1.AgentRiskTier_AGENT_RISK_TIER_HIGH,
 		CorrelationId: grpcCorrID,
 		Reasoning: &observabilityv1.AppendReasoningSummary{
 			InputText: "prompt text", OutputText: "response text", LatencyMs: 350,
@@ -443,8 +449,8 @@ func TestAppendAgentDecision_NoReasoning(t *testing.T) {
 	h := newTestHarness(t)
 	res, err := h.srv.AppendAgentDecision(context.Background(), &observabilityv1.AppendAgentDecisionRequest{
 		TenantId: grpcTenant, Agid: grpcAgid,
-		DecisionType: observabilityv1.AgentDecisionType_AGENT_DECISION_TYPE_ROUTE,
-		RiskTier:     observabilityv1.AgentRiskTier_AGENT_RISK_TIER_LOW,
+		DecisionType:  observabilityv1.AgentDecisionType_AGENT_DECISION_TYPE_ROUTE,
+		RiskTier:      observabilityv1.AgentRiskTier_AGENT_RISK_TIER_LOW,
 		CorrelationId: grpcCorrID,
 	})
 	if err != nil {
@@ -463,9 +469,9 @@ func TestAppendAgentDecision_ValidationErrors(t *testing.T) {
 	}
 
 	if _, err := h.srv.AppendAgentDecision(context.Background(), &observabilityv1.AppendAgentDecisionRequest{
-		Agid: grpcAgid,
-		DecisionType: observabilityv1.AgentDecisionType_AGENT_DECISION_TYPE_ROUTE,
-		RiskTier:     observabilityv1.AgentRiskTier_AGENT_RISK_TIER_LOW,
+		Agid:          grpcAgid,
+		DecisionType:  observabilityv1.AgentDecisionType_AGENT_DECISION_TYPE_ROUTE,
+		RiskTier:      observabilityv1.AgentRiskTier_AGENT_RISK_TIER_LOW,
 		CorrelationId: grpcCorrID,
 	}); err == nil || status.Code(err) != codes.InvalidArgument {
 		t.Fatalf("empty tenant code = %v; want InvalidArgument", status.Code(err))
@@ -474,8 +480,8 @@ func TestAppendAgentDecision_ValidationErrors(t *testing.T) {
 	// UNSPECIFIED decision type -> domain rejects -> InvalidArgument
 	_, err := h.srv.AppendAgentDecision(context.Background(), &observabilityv1.AppendAgentDecisionRequest{
 		TenantId: grpcTenant, Agid: grpcAgid,
-		DecisionType: observabilityv1.AgentDecisionType_AGENT_DECISION_TYPE_UNSPECIFIED,
-		RiskTier:     observabilityv1.AgentRiskTier_AGENT_RISK_TIER_LOW,
+		DecisionType:  observabilityv1.AgentDecisionType_AGENT_DECISION_TYPE_UNSPECIFIED,
+		RiskTier:      observabilityv1.AgentRiskTier_AGENT_RISK_TIER_LOW,
 		CorrelationId: grpcCorrID,
 	})
 	expectCode(t, err, codes.InvalidArgument)
@@ -483,10 +489,10 @@ func TestAppendAgentDecision_ValidationErrors(t *testing.T) {
 	// invalid reasoning latency -> InvalidArgument
 	_, err = h.srv.AppendAgentDecision(context.Background(), &observabilityv1.AppendAgentDecisionRequest{
 		TenantId: grpcTenant, Agid: grpcAgid,
-		DecisionType: observabilityv1.AgentDecisionType_AGENT_DECISION_TYPE_ROUTE,
-		RiskTier:     observabilityv1.AgentRiskTier_AGENT_RISK_TIER_LOW,
+		DecisionType:  observabilityv1.AgentDecisionType_AGENT_DECISION_TYPE_ROUTE,
+		RiskTier:      observabilityv1.AgentRiskTier_AGENT_RISK_TIER_LOW,
 		CorrelationId: grpcCorrID,
-		Reasoning: &observabilityv1.AppendReasoningSummary{LatencyMs: -1},
+		Reasoning:     &observabilityv1.AppendReasoningSummary{LatencyMs: -1},
 	})
 	expectCode(t, err, codes.InvalidArgument)
 }
@@ -495,8 +501,8 @@ func TestAppendAgentDecision_RepoFailure(t *testing.T) {
 	srv := grpcadapter.NewObservabilityServer(inmem.NewLedgerRepository(), &stubDecisionRepo{appendErr: errors.New("boom")}, inmem.NewCorrelationRepository(), nil)
 	_, err := srv.AppendAgentDecision(context.Background(), &observabilityv1.AppendAgentDecisionRequest{
 		TenantId: grpcTenant, Agid: grpcAgid,
-		DecisionType: observabilityv1.AgentDecisionType_AGENT_DECISION_TYPE_ROUTE,
-		RiskTier:     observabilityv1.AgentRiskTier_AGENT_RISK_TIER_LOW,
+		DecisionType:  observabilityv1.AgentDecisionType_AGENT_DECISION_TYPE_ROUTE,
+		RiskTier:      observabilityv1.AgentRiskTier_AGENT_RISK_TIER_LOW,
 		CorrelationId: grpcCorrID,
 	})
 	expectCode(t, err, codes.Internal)

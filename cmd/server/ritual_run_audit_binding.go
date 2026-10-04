@@ -19,8 +19,8 @@ import (
 	"context"
 	"log"
 
-	cgcpubsub "github.com/5007-Capstone/chora/libs/chora-go-common/pubsub"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/ritualaudit"
+	cgcpubsub "github.com/apollo-chora/chora-common/pubsub"
+	"github.com/apollo-chora/chora-observability/internal/domain/ritualaudit"
 )
 
 // DefaultRitualAuditSubscription is the canonical subscription short-name; the

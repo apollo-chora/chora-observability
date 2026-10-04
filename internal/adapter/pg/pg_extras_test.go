@@ -18,9 +18,9 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/pg"
-	fg "github.com/5007-Capstone/chora/services/chora-observability/internal/domain/familiargrowth"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/ledger"
+	"github.com/apollo-chora/chora-observability/internal/adapter/pg"
+	fg "github.com/apollo-chora/chora-observability/internal/domain/familiargrowth"
+	"github.com/apollo-chora/chora-observability/internal/domain/ledger"
 )
 
 // extStubQuerier is a flexible pg.Querier stub: it can script Query rows,

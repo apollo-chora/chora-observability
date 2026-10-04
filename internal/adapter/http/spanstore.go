@@ -18,7 +18,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/decision"
+	"github.com/apollo-chora/chora-observability/internal/domain/decision"
 )
 
 // spanstoreQuery GET /api/v1/observability/spans?trace_id={X}

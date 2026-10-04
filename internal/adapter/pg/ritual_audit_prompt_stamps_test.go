@@ -13,7 +13,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/pg"
+	"github.com/apollo-chora/chora-observability/internal/adapter/pg"
 )
 
 // promptStampsStub scripts a totals row (QueryRow) + version rows (Query) so

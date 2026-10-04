@@ -38,7 +38,7 @@ import (
 	"strings"
 	"time"
 
-	fg "github.com/5007-Capstone/chora/services/chora-observability/internal/domain/familiargrowth"
+	fg "github.com/apollo-chora/chora-observability/internal/domain/familiargrowth"
 )
 
 // FamiliarGrowthRepository is the pgx-backed familiargrowth.Repository.

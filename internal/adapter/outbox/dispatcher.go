@@ -35,8 +35,8 @@ import (
 	"log"
 	"time"
 
-	cgcenvelope "github.com/5007-Capstone/chora/libs/chora-go-common/envelope"
-	cgctracing "github.com/5007-Capstone/chora/libs/chora-go-common/tracing"
+	cgcenvelope "github.com/apollo-chora/chora-common/envelope"
+	cgctracing "github.com/apollo-chora/chora-common/tracing"
 )
 
 // TopicObservabilitySinkFailure is the canonical sink-failure alert topic the
@@ -76,15 +76,15 @@ const (
 // It carries enough context for the O+ auditor view + a Cloud Monitoring
 // alert policy to act without a cross-DB join (cross-DB queries forbidden).
 type SinkFailureAlert struct {
-	RowID        string            `json:"row_id"`
-	TenantID     string            `json:"tenant_id"`
-	Topic        string            `json:"topic"`          // the destination topic that failed
-	EventType    string            `json:"event_type"`     // the dead-lettered event's type
-	Reason       SinkFailureReason `json:"reason"`         // malformed | publish_exhausted
-	FailureDetail string           `json:"failure_detail"` // bounded error string
-	AttemptCount int               `json:"attempt_count"`
-	WorkerID     string            `json:"worker_id"`
-	OccurredAt   time.Time         `json:"occurred_at"`
+	RowID         string            `json:"row_id"`
+	TenantID      string            `json:"tenant_id"`
+	Topic         string            `json:"topic"`          // the destination topic that failed
+	EventType     string            `json:"event_type"`     // the dead-lettered event's type
+	Reason        SinkFailureReason `json:"reason"`         // malformed | publish_exhausted
+	FailureDetail string            `json:"failure_detail"` // bounded error string
+	AttemptCount  int               `json:"attempt_count"`
+	WorkerID      string            `json:"worker_id"`
+	OccurredAt    time.Time         `json:"occurred_at"`
 }
 
 // AlertSink is the optional write port the Dispatcher uses to emit the
@@ -97,7 +97,7 @@ type AlertSink interface {
 }
 
 // Bus is the Pub/Sub publisher contract the Dispatcher uses. Matches
-// `libs/chora-go-common/pubsub.OutboxCompatible` so the InMemoryBus + the
+// `chora-common/pubsub.OutboxCompatible` so the InMemoryBus + the
 // CloudPubSub adapter slot in directly.
 type Bus interface {
 	Publish(ctx context.Context, topic string, env cgcenvelope.Envelope, payload []byte) error

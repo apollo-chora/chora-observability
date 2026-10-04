@@ -14,8 +14,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	httpadapter "github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/http"
-	analyticsinmem "github.com/5007-Capstone/chora/services/chora-observability/internal/analytics/inmem"
+	httpadapter "github.com/apollo-chora/chora-observability/internal/adapter/http"
+	analyticsinmem "github.com/apollo-chora/chora-observability/internal/analytics/inmem"
 )
 
 // newAnalyticsTestServer wires the observability router with only the analytics

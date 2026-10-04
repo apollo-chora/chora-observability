@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	cs "github.com/5007-Capstone/chora/services/chora-observability/internal/domain/companionsuspension"
+	cs "github.com/apollo-chora/chora-observability/internal/domain/companionsuspension"
 )
 
 const (

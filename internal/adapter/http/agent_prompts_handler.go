@@ -34,8 +34,8 @@ import (
 	"sort"
 	"time"
 
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/decision"
-	ra "github.com/5007-Capstone/chora/services/chora-observability/internal/domain/ritualaudit"
+	"github.com/apollo-chora/chora-observability/internal/domain/decision"
+	ra "github.com/apollo-chora/chora-observability/internal/domain/ritualaudit"
 )
 
 // Five-agent contract constants. qgenQuestionAgentID / qgenCriticAgentID /

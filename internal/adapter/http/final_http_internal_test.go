@@ -12,10 +12,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/inmem"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/decision"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/familiargrowth"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/ledger"
+	"github.com/apollo-chora/chora-observability/internal/adapter/inmem"
+	"github.com/apollo-chora/chora-observability/internal/domain/decision"
+	"github.com/apollo-chora/chora-observability/internal/domain/familiargrowth"
+	"github.com/apollo-chora/chora-observability/internal/domain/ledger"
 )
 
 func TestTokenUsageSub_MethodAndPathGuards(t *testing.T) {
@@ -109,11 +109,11 @@ func TestBreedDistributionReport_TypeSwitchBranches(t *testing.T) {
 			TenantID: "t-1", EggSKU: "egg-a", Species: "common",
 			RevealedAt: t0,
 			DistributionSnapshot: map[string]any{
-				"common":  float64(0.5),  // already 0-1
-				"rare":    float32(25),   // percent (float32)
-				"epic":    int64(25),     // percent (int64)
-				"legend":  int(0),        // percent (int)
-				"unknown": "nope",        // ignored type
+				"common":  float64(0.5), // already 0-1
+				"rare":    float32(25),  // percent (float32)
+				"epic":    int64(25),    // percent (int64)
+				"legend":  int(0),       // percent (int)
+				"unknown": "nope",       // ignored type
 			},
 		},
 	}
@@ -167,7 +167,7 @@ func (*failLedgerHTTP) SumCost(context.Context, string, ledger.ListFilter) (int6
 
 type failDecisionHTTP struct{}
 
-func (*failDecisionHTTP) Append(context.Context, *decision.Log) error                 { return nil }
+func (*failDecisionHTTP) Append(context.Context, *decision.Log) error { return nil }
 func (*failDecisionHTTP) List(context.Context, string, decision.ListFilter) ([]*decision.Log, error) {
 	return nil, errors.New("boom")
 }

@@ -8,11 +8,11 @@ import (
 	"testing"
 	"time"
 
-	observabilityv1 "github.com/locoroco-git/Chora-LMS/chora-contracts/gen/go/chora/services/observability/v1"
+	observabilityv1 "github.com/apollo-chora/chora-contracts/gen/go/chora/services/observability/v1"
 
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/correlation"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/decision"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/ledger"
+	"github.com/apollo-chora/chora-observability/internal/domain/correlation"
+	"github.com/apollo-chora/chora-observability/internal/domain/decision"
+	"github.com/apollo-chora/chora-observability/internal/domain/ledger"
 )
 
 func TestTokenUsageEntryToProto_Nil(t *testing.T) {
@@ -56,9 +56,9 @@ func TestAgentDecisionEntryToProto_RoundTrip(t *testing.T) {
 	d, err := decision.New(decision.NewParams{
 		TenantID: "t-1", Agid: "a-1",
 		DecisionType: decision.TypeRefuse, Reason: "because",
-		RiskTier:     decision.TierCritical,
+		RiskTier:      decision.TierCritical,
 		CorrelationID: "c-1",
-		Reasoning: mustReasoning(t),
+		Reasoning:     mustReasoning(t),
 	})
 	if err != nil {
 		t.Fatalf("decision.New: %v", err)

@@ -29,10 +29,10 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	cgcpubsub "github.com/5007-Capstone/chora/libs/chora-go-common/pubsub"
-	tenancyv1 "github.com/locoroco-git/Chora-LMS/chora-contracts/gen/go/chora/tenancy/v1"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/events"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/externalegress"
+	cgcpubsub "github.com/apollo-chora/chora-common/pubsub"
+	tenancyv1 "github.com/apollo-chora/chora-contracts/gen/go/chora/tenancy/v1"
+	"github.com/apollo-chora/chora-observability/internal/adapter/events"
+	"github.com/apollo-chora/chora-observability/internal/domain/externalegress"
 )
 
 // DefaultExternalEgressSubscription is the canonical subscription short-name.

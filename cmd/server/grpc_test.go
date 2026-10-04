@@ -28,10 +28,10 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
 
-	observabilityv1 "github.com/locoroco-git/Chora-LMS/chora-contracts/gen/go/chora/services/observability/v1"
+	observabilityv1 "github.com/apollo-chora/chora-contracts/gen/go/chora/services/observability/v1"
 
-	grpcadapter "github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/grpc"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/inmem"
+	grpcadapter "github.com/apollo-chora/chora-observability/internal/adapter/grpc"
+	"github.com/apollo-chora/chora-observability/internal/adapter/inmem"
 )
 
 const bufconnSize = 1024 * 1024

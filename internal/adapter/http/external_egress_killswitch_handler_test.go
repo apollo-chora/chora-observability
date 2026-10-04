@@ -16,8 +16,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/5007-Capstone/chora/libs/chora-go-common/auth/servicemesh"
-	ee "github.com/5007-Capstone/chora/services/chora-observability/internal/domain/externalegress"
+	"github.com/apollo-chora/chora-common/auth/servicemesh"
+	ee "github.com/apollo-chora/chora-observability/internal/domain/externalegress"
 )
 
 const ksActor = "00000000-0000-7000-8000-000000001999"

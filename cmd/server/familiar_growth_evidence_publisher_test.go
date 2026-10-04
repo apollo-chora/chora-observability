@@ -15,11 +15,11 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	governancev1 "github.com/locoroco-git/Chora-LMS/chora-contracts/gen/go/chora/governance/v1"
+	governancev1 "github.com/apollo-chora/chora-contracts/gen/go/chora/governance/v1"
 
-	cgcenvelope "github.com/5007-Capstone/chora/libs/chora-go-common/envelope"
-	obsoutbox "github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/outbox"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/subscribers"
+	cgcenvelope "github.com/apollo-chora/chora-common/envelope"
+	obsoutbox "github.com/apollo-chora/chora-observability/internal/adapter/outbox"
+	"github.com/apollo-chora/chora-observability/internal/adapter/subscribers"
 )
 
 const evTenant = "11111111-1111-7111-8111-111111111111"

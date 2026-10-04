@@ -26,11 +26,11 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	cgcpubsub "github.com/5007-Capstone/chora/libs/chora-go-common/pubsub"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/events"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/decision"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/pricing"
-	observabilityv1 "github.com/locoroco-git/Chora-LMS/chora-contracts/gen/go/chora/observability/v1"
+	cgcpubsub "github.com/apollo-chora/chora-common/pubsub"
+	observabilityv1 "github.com/apollo-chora/chora-contracts/gen/go/chora/observability/v1"
+	"github.com/apollo-chora/chora-observability/internal/adapter/events"
+	"github.com/apollo-chora/chora-observability/internal/domain/decision"
+	"github.com/apollo-chora/chora-observability/internal/domain/pricing"
 )
 
 // decisionCostCalculator derives a per-decision cost (in 1e-6 USD micros) from

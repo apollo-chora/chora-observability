@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/analytics/retention"
+	"github.com/apollo-chora/chora-observability/internal/analytics/retention"
 )
 
 func TestEbbinghausRecall_AtZero_IsOne(t *testing.T) {

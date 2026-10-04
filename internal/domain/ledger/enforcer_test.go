@@ -13,7 +13,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/ledger"
+	"github.com/apollo-chora/chora-observability/internal/domain/ledger"
 )
 
 const (
@@ -57,10 +57,10 @@ func TestEnforcer_Allow_NoLimitsConfigured(t *testing.T) {
 	// No budgets set anywhere → no cap to violate → ALLOW.
 	enf := ledger.NewBudgetEnforcer(&stubLookup{})
 	dec := enf.Check(context.Background(), ledger.CheckRequest{
-		TenantID:           enfTenant,
-		Gcid:               enfGcid,
-		AgentID:            enfAgent,
-		Period:             enfPeriod,
+		TenantID:            enfTenant,
+		Gcid:                enfGcid,
+		AgentID:             enfAgent,
+		Period:              enfPeriod,
 		ProjectedCostMicros: 100_000,
 	})
 	if !dec.Allowed {
@@ -76,10 +76,10 @@ func TestEnforcer_Allow_TenantUnderCap(t *testing.T) {
 	t1.RecordSpend(200_000) // 20% used; projected 100k → 30% total.
 	enf := ledger.NewBudgetEnforcer(&stubLookup{tenantBudget: t1})
 	dec := enf.Check(context.Background(), ledger.CheckRequest{
-		TenantID:           enfTenant,
-		Gcid:               enfGcid,
-		AgentID:            enfAgent,
-		Period:             enfPeriod,
+		TenantID:            enfTenant,
+		Gcid:                enfGcid,
+		AgentID:             enfAgent,
+		Period:              enfPeriod,
 		ProjectedCostMicros: 100_000,
 	})
 	if !dec.Allowed {
@@ -99,10 +99,10 @@ func TestEnforcer_Block_TenantHardCap(t *testing.T) {
 	enf := ledger.NewBudgetEnforcer(&stubLookup{tenantBudget: t1})
 	// Projected 100k would push to 105% → 100% hard-block.
 	dec := enf.Check(context.Background(), ledger.CheckRequest{
-		TenantID:           enfTenant,
-		Gcid:               enfGcid,
-		AgentID:            enfAgent,
-		Period:             enfPeriod,
+		TenantID:            enfTenant,
+		Gcid:                enfGcid,
+		AgentID:             enfAgent,
+		Period:              enfPeriod,
 		ProjectedCostMicros: 100_000,
 	})
 	if dec.Allowed {
@@ -130,10 +130,10 @@ func TestEnforcer_Block_UserCap(t *testing.T) {
 	})
 	// User: 40k spent of 50k cap; projected 20k → 60k = 120%.
 	dec := enf.Check(context.Background(), ledger.CheckRequest{
-		TenantID:           enfTenant,
-		Gcid:               enfGcid,
-		AgentID:            enfAgent,
-		Period:             enfPeriod,
+		TenantID:            enfTenant,
+		Gcid:                enfGcid,
+		AgentID:             enfAgent,
+		Period:              enfPeriod,
 		ProjectedCostMicros: 20_000,
 	})
 	if dec.Allowed {
@@ -159,10 +159,10 @@ func TestEnforcer_Block_AgentKillSwitch(t *testing.T) {
 	})
 	// Even projecting +1 should fire kill-switch since spent already >= cap*100.
 	dec := enf.Check(context.Background(), ledger.CheckRequest{
-		TenantID:           enfTenant,
-		Gcid:               enfGcid,
-		AgentID:            enfAgent,
-		Period:             enfPeriod,
+		TenantID:            enfTenant,
+		Gcid:                enfGcid,
+		AgentID:             enfAgent,
+		Period:              enfPeriod,
 		ProjectedCostMicros: 1,
 	})
 	if dec.Allowed {
@@ -183,10 +183,10 @@ func TestEnforcer_Allow_WithThresholdsCrossed_DoesNotBlock(t *testing.T) {
 	t1.RecordSpend(700_000) // 70% used, Threshold50 already crossed.
 	enf := ledger.NewBudgetEnforcer(&stubLookup{tenantBudget: t1})
 	dec := enf.Check(context.Background(), ledger.CheckRequest{
-		TenantID:           enfTenant,
-		Gcid:               enfGcid,
-		AgentID:            enfAgent,
-		Period:             enfPeriod,
+		TenantID:            enfTenant,
+		Gcid:                enfGcid,
+		AgentID:             enfAgent,
+		Period:              enfPeriod,
 		ProjectedCostMicros: 50_000, // → 75%
 	})
 	if !dec.Allowed {
@@ -211,10 +211,10 @@ func TestEnforcer_TenantTakesPrecedenceOverUser(t *testing.T) {
 		userBudget:   u1,
 	})
 	dec := enf.Check(context.Background(), ledger.CheckRequest{
-		TenantID:           enfTenant,
-		Gcid:               enfGcid,
-		AgentID:            enfAgent,
-		Period:             enfPeriod,
+		TenantID:            enfTenant,
+		Gcid:                enfGcid,
+		AgentID:             enfAgent,
+		Period:              enfPeriod,
 		ProjectedCostMicros: 1,
 	})
 	if dec.Allowed {
@@ -234,10 +234,10 @@ func TestEnforcer_Check_ZeroProjectionAllowed(t *testing.T) {
 	enf := ledger.NewBudgetEnforcer(&stubLookup{tenantBudget: t1})
 	// Even at 99.9% spent, a zero-projection check is informational only.
 	dec := enf.Check(context.Background(), ledger.CheckRequest{
-		TenantID:           enfTenant,
-		Gcid:               enfGcid,
-		AgentID:            enfAgent,
-		Period:             enfPeriod,
+		TenantID:            enfTenant,
+		Gcid:                enfGcid,
+		AgentID:             enfAgent,
+		Period:              enfPeriod,
 		ProjectedCostMicros: 0,
 	})
 	if !dec.Allowed {
@@ -249,10 +249,10 @@ func TestEnforcer_Check_NegativeProjectionRejected(t *testing.T) {
 	t.Parallel()
 	enf := ledger.NewBudgetEnforcer(&stubLookup{})
 	dec := enf.Check(context.Background(), ledger.CheckRequest{
-		TenantID:           enfTenant,
-		Gcid:               enfGcid,
-		AgentID:            enfAgent,
-		Period:             enfPeriod,
+		TenantID:            enfTenant,
+		Gcid:                enfGcid,
+		AgentID:             enfAgent,
+		Period:              enfPeriod,
 		ProjectedCostMicros: -1,
 	})
 	// Negative projection is a programming error; we DENY defensively rather
@@ -275,10 +275,10 @@ func TestEnforcer_Check_RetryAfterPopulatedOnHardBlock(t *testing.T) {
 	t1.RecordSpend(1_000_000)
 	enf := ledger.NewBudgetEnforcer(&stubLookup{tenantBudget: t1})
 	dec := enf.Check(context.Background(), ledger.CheckRequest{
-		TenantID:           enfTenant,
-		Gcid:               enfGcid,
-		AgentID:            enfAgent,
-		Period:             enfPeriod,
+		TenantID:            enfTenant,
+		Gcid:                enfGcid,
+		AgentID:             enfAgent,
+		Period:              enfPeriod,
 		ProjectedCostMicros: 1,
 	})
 	if dec.RetryAfterSeconds <= 0 {
@@ -294,10 +294,10 @@ func TestEnforcer_Check_LookupErrorTreatedAsAllow(t *testing.T) {
 	// (The Router will still see the error in its log/trace.)
 	enf := ledger.NewBudgetEnforcer(&errStubLookup{})
 	dec := enf.Check(context.Background(), ledger.CheckRequest{
-		TenantID:           enfTenant,
-		Gcid:               enfGcid,
-		AgentID:            enfAgent,
-		Period:             enfPeriod,
+		TenantID:            enfTenant,
+		Gcid:                enfGcid,
+		AgentID:             enfAgent,
+		Period:              enfPeriod,
 		ProjectedCostMicros: 100_000,
 	})
 	if !dec.Allowed {

@@ -23,7 +23,7 @@ package httpadapter
 import (
 	"net/http"
 
-	ee "github.com/5007-Capstone/chora/services/chora-observability/internal/domain/externalegress"
+	ee "github.com/apollo-chora/chora-observability/internal/domain/externalegress"
 )
 
 // WithEgressKillSwitchRepo enables the platform egress kill-switch routes.

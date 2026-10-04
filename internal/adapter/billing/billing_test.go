@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/billing"
+	"github.com/apollo-chora/chora-observability/internal/adapter/billing"
 )
 
 func TestMockClient_Returns_SeededValue(t *testing.T) {

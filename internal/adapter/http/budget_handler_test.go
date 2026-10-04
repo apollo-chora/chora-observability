@@ -78,12 +78,12 @@ func TestGetBudget_ReturnsCurrentSpendVsCap(t *testing.T) {
 		t.Fatalf("status = %d body=%s", w2.Code, w2.Body.String())
 	}
 	var resp struct {
-		BudgetID            string  `json:"budget_id"`
-		Period              string  `json:"period"`
-		CapUsdMicros        int64   `json:"cap_usd_micros"`
-		SpentUsdMicros      int64   `json:"spent_usd_micros"`
-		PercentSpent        float64 `json:"percent_spent"`
-		ThresholdsCrossed   []string `json:"thresholds_crossed"`
+		BudgetID          string   `json:"budget_id"`
+		Period            string   `json:"period"`
+		CapUsdMicros      int64    `json:"cap_usd_micros"`
+		SpentUsdMicros    int64    `json:"spent_usd_micros"`
+		PercentSpent      float64  `json:"percent_spent"`
+		ThresholdsCrossed []string `json:"thresholds_crossed"`
 	}
 	_ = json.Unmarshal(w2.Body.Bytes(), &resp)
 	if resp.CapUsdMicros != 1000000 {
@@ -154,16 +154,16 @@ func TestGetAgentDecisionByID_ReturnsFullDetail(t *testing.T) {
 	srv := newServer(t)
 	w := httptest.NewRecorder()
 	body := map[string]any{
-		"agid":               agidA,
-		"decision_type":      "route",
-		"reason":             "matched cheap-route",
-		"risk_tier":          "low",
-		"correlation_id":     corrA,
-		"traceparent":        tpA,
-		"input_text":         "user wants to learn LeChatelier",
-		"output_text":        "model produced explanation",
-		"latency_ms":         250,
-		"reasoning_summary":  "router -> generator",
+		"agid":              agidA,
+		"decision_type":     "route",
+		"reason":            "matched cheap-route",
+		"risk_tier":         "low",
+		"correlation_id":    corrA,
+		"traceparent":       tpA,
+		"input_text":        "user wants to learn LeChatelier",
+		"output_text":       "model produced explanation",
+		"latency_ms":        250,
+		"reasoning_summary": "router -> generator",
 	}
 	srv.ServeHTTP(w, authedReq(http.MethodPost, "/api/agent-decisions", body))
 	if w.Code != http.StatusCreated {

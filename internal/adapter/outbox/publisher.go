@@ -22,8 +22,8 @@ import (
 	"strconv"
 	"time"
 
-	cgctracing "github.com/5007-Capstone/chora/libs/chora-go-common/tracing"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/ledger"
+	cgctracing "github.com/apollo-chora/chora-common/tracing"
+	"github.com/apollo-chora/chora-observability/internal/domain/ledger"
 )
 
 // schemaVersion is the major version of the on-wire payload schema.

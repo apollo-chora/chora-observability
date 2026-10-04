@@ -37,20 +37,20 @@ type Registry struct {
 // chora-observability actually consumes — extra fields parse through via
 // the json tags.
 type Entry struct {
-	Name           string   `json:"name"`
-	Pattern        string   `json:"pattern,omitempty"`
-	Language       string   `json:"language,omitempty"`
-	Framework      string   `json:"framework,omitempty"`
-	Module         string   `json:"module,omitempty"`
-	Entrypoint     string   `json:"entrypoint,omitempty"`
-	Domain         string   `json:"domain,omitempty"`
-	OwningTeam     string   `json:"owningTeam,omitempty"`
-	Region         string   `json:"region,omitempty"`
-	LiveEngine     string   `json:"liveEngine,omitempty"`
-	PhyllisStep    string   `json:"phyllisStep,omitempty"`
-	Notes          string   `json:"notes,omitempty"`
-	MultiAgent     bool     `json:"multiAgent,omitempty"`
-	SubAgents      []string `json:"subAgents,omitempty"`
+	Name        string   `json:"name"`
+	Pattern     string   `json:"pattern,omitempty"`
+	Language    string   `json:"language,omitempty"`
+	Framework   string   `json:"framework,omitempty"`
+	Module      string   `json:"module,omitempty"`
+	Entrypoint  string   `json:"entrypoint,omitempty"`
+	Domain      string   `json:"domain,omitempty"`
+	OwningTeam  string   `json:"owningTeam,omitempty"`
+	Region      string   `json:"region,omitempty"`
+	LiveEngine  string   `json:"liveEngine,omitempty"`
+	PhyllisStep string   `json:"phyllisStep,omitempty"`
+	Notes       string   `json:"notes,omitempty"`
+	MultiAgent  bool     `json:"multiAgent,omitempty"`
+	SubAgents   []string `json:"subAgents,omitempty"`
 }
 
 // EngineID returns the parsed reasoning engine ID from LiveEngine (the

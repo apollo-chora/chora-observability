@@ -45,9 +45,9 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	cgcpubsub "github.com/5007-Capstone/chora/libs/chora-go-common/pubsub"
-	observabilityv1 "github.com/locoroco-git/Chora-LMS/chora-contracts/gen/go/chora/observability/v1"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/events"
+	cgcpubsub "github.com/apollo-chora/chora-common/pubsub"
+	observabilityv1 "github.com/apollo-chora/chora-contracts/gen/go/chora/observability/v1"
+	"github.com/apollo-chora/chora-observability/internal/adapter/events"
 )
 
 // DefaultTokenUsageSubscription is the canonical subscription resource

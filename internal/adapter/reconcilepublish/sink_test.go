@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	cgcenvelope "github.com/5007-Capstone/chora/libs/chora-go-common/envelope"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/reconcilepublish"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/reconcile"
+	cgcenvelope "github.com/apollo-chora/chora-common/envelope"
+	"github.com/apollo-chora/chora-observability/internal/adapter/reconcilepublish"
+	"github.com/apollo-chora/chora-observability/internal/domain/reconcile"
 )
 
 type recordedPublish struct {

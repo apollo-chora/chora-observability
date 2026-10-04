@@ -11,8 +11,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/pg"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/decision"
+	"github.com/apollo-chora/chora-observability/internal/adapter/pg"
+	"github.com/apollo-chora/chora-observability/internal/domain/decision"
 )
 
 // decisionStubQuerier captures Append args and serves a scripted single row to
@@ -221,10 +221,10 @@ func TestDecisionRepository_List_ScansPlus9(t *testing.T) {
 			cost,                         // cost_usd_micros (int64 → *int64 via assignScan)
 			"mcq_ai_assist", "crew-1",    // crew_name, crew_id
 			int64(100), int64(50), int64(10), // prompt/completion/cached tokens
-			"pass", // guardrail_verdict
-			"",     // autonomy_level (text)
-			"mcq",  // question_type
-			"accepted", // verdict
+			"pass",                      // guardrail_verdict
+			"",                          // autonomy_level (text)
+			"mcq",                       // question_type
+			"accepted",                  // verdict
 			`{"intent":"new_question"}`, // prompt_conditions (jsonb::text)
 		},
 	}
@@ -285,9 +285,9 @@ func TestDecisionRepository_GetByID_ScansQuestionType(t *testing.T) {
 			nil,                          // cost_usd_micros (NULL)
 			"", "",                       // crew_name, crew_id
 			int64(0), int64(0), int64(0), // tokens
-			"",    // guardrail_verdict
-			"",    // autonomy_level
-			"mcq", // question_type
+			"",                       // guardrail_verdict
+			"",                       // autonomy_level
+			"mcq",                    // question_type
 			"completed_with_warning", // verdict
 			"",                       // prompt_conditions (NULL → empty string → empty map)
 		},

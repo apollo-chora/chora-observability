@@ -25,7 +25,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/eval"
+	"github.com/apollo-chora/chora-observability/internal/domain/eval"
 )
 
 const (

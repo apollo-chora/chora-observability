@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/pricing"
+	"github.com/apollo-chora/chora-observability/internal/domain/pricing"
 )
 
 func TestLoadCanonicalPricingYAML(t *testing.T) {

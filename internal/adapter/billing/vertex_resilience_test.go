@@ -22,7 +22,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/billing"
+	"github.com/apollo-chora/chora-observability/internal/adapter/billing"
 )
 
 // staticTok is reused across tests in this file.
@@ -101,9 +101,9 @@ func TestVertexClient_CircuitBreaker_OpensAfterConsecutiveFailures(t *testing.T)
 	defer srv.Close()
 
 	c, err := billing.NewVertexClient(billing.VertexConfig{
-		BaseURL:                srv.URL,
-		TokenSource:            &staticTok{v: "tok"},
-		MaxRetries:             1, // 1 attempt per call (no in-call retry)
+		BaseURL:                 srv.URL,
+		TokenSource:             &staticTok{v: "tok"},
+		MaxRetries:              1, // 1 attempt per call (no in-call retry)
 		CircuitBreakerThreshold: 3,
 		CircuitBreakerCooldown:  100 * time.Millisecond,
 	})
@@ -147,11 +147,11 @@ func TestVertexClient_CircuitBreaker_ClosesAfterCooldown(t *testing.T) {
 	defer srv.Close()
 
 	c, _ := billing.NewVertexClient(billing.VertexConfig{
-		BaseURL:                  srv.URL,
-		TokenSource:              &staticTok{v: "tok"},
-		MaxRetries:               1,
-		CircuitBreakerThreshold:  3,
-		CircuitBreakerCooldown:   50 * time.Millisecond,
+		BaseURL:                 srv.URL,
+		TokenSource:             &staticTok{v: "tok"},
+		MaxRetries:              1,
+		CircuitBreakerThreshold: 3,
+		CircuitBreakerCooldown:  50 * time.Millisecond,
 	})
 	for i := 0; i < 3; i++ {
 		_, _ = c.QueryAggregatedCostMicrosForWindow(context.Background(),

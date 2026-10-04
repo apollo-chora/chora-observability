@@ -38,15 +38,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/agents"
-	cs "github.com/5007-Capstone/chora/services/chora-observability/internal/domain/companionsuspension"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/correlation"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/decision"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/eval"
-	ee "github.com/5007-Capstone/chora/services/chora-observability/internal/domain/externalegress"
-	fg "github.com/5007-Capstone/chora/services/chora-observability/internal/domain/familiargrowth"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/ledger"
-	ra "github.com/5007-Capstone/chora/services/chora-observability/internal/domain/ritualaudit"
+	"github.com/apollo-chora/chora-observability/internal/domain/agents"
+	cs "github.com/apollo-chora/chora-observability/internal/domain/companionsuspension"
+	"github.com/apollo-chora/chora-observability/internal/domain/correlation"
+	"github.com/apollo-chora/chora-observability/internal/domain/decision"
+	"github.com/apollo-chora/chora-observability/internal/domain/eval"
+	ee "github.com/apollo-chora/chora-observability/internal/domain/externalegress"
+	fg "github.com/apollo-chora/chora-observability/internal/domain/familiargrowth"
+	"github.com/apollo-chora/chora-observability/internal/domain/ledger"
+	ra "github.com/apollo-chora/chora-observability/internal/domain/ritualaudit"
 )
 
 // Handler is the HTTP-layer dispatcher.

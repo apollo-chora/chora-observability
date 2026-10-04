@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/inmem"
-	fg "github.com/5007-Capstone/chora/services/chora-observability/internal/domain/familiargrowth"
+	"github.com/apollo-chora/chora-observability/internal/adapter/inmem"
+	fg "github.com/apollo-chora/chora-observability/internal/domain/familiargrowth"
 )
 
 const (
@@ -129,7 +129,7 @@ func TestFamiliarGrowthRepository_IngestFunnelDelta(t *testing.T) {
 
 	req := func(eventID string) fg.IngestRequest {
 		return fg.IngestRequest{
-			Ledger:  fgLedgerRow(fgAuditID, fgTenant, eventID),
+			Ledger: fgLedgerRow(fgAuditID, fgTenant, eventID),
 			FunnelDelta: &fg.EggFunnelDelta{
 				DayBucket: fgDay(), PurchasedDelta: 2, HatchedDelta: 1,
 			},

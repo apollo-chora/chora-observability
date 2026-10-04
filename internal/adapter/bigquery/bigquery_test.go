@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/bigquery"
+	"github.com/apollo-chora/chora-observability/internal/adapter/bigquery"
 )
 
 func TestMockClient_Returns_SeededValue(t *testing.T) {
@@ -46,9 +46,9 @@ func TestMockClient_FilteredByEvalRun(t *testing.T) {
 	ws := time.Date(2026, 5, 9, 0, 0, 0, 0, time.UTC)
 	we := ws.AddDate(0, 0, 1)
 	got, _ := mc.SumLedgerCostMicros(context.Background(), bigquery.Query{
-		ProjectID:   "chora-489812",
-		WindowStart: ws,
-		WindowEnd:   we,
+		ProjectID:       "chora-489812",
+		WindowStart:     ws,
+		WindowEnd:       we,
 		ExcludeEvalRuns: true,
 	})
 	if got != 500_000 {

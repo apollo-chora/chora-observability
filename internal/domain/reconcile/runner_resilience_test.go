@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/reconcile"
+	"github.com/apollo-chora/chora-observability/internal/domain/reconcile"
 )
 
 type stubBQErr struct{}

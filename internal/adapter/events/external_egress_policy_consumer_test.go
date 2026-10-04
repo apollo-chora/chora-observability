@@ -24,9 +24,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/5007-Capstone/chora/libs/chora-go-common/idempotent"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/adapter/events"
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/externalegress"
+	"github.com/apollo-chora/chora-common/idempotent"
+	"github.com/apollo-chora/chora-observability/internal/adapter/events"
+	"github.com/apollo-chora/chora-observability/internal/domain/externalegress"
 )
 
 const (
@@ -180,11 +180,11 @@ func TestExternalEgressConsumer_Handle_MalformedEvent_Rejected(t *testing.T) {
 	t.Parallel()
 
 	cases := map[string]func(*externalegress.PolicyChanged){
-		"no event_id":       func(e *externalegress.PolicyChanged) { e.EventID = "" },
-		"no tenant_id":      func(e *externalegress.PolicyChanged) { e.TenantID = "" },
-		"no actor":          func(e *externalegress.PolicyChanged) { e.UpdatedByGCID = "" },
-		"version 0":         func(e *externalegress.PolicyChanged) { e.Version = 0 },
-		"negative ceiling":  func(e *externalegress.PolicyChanged) { e.DailyCallCeiling = -1 },
+		"no event_id":      func(e *externalegress.PolicyChanged) { e.EventID = "" },
+		"no tenant_id":     func(e *externalegress.PolicyChanged) { e.TenantID = "" },
+		"no actor":         func(e *externalegress.PolicyChanged) { e.UpdatedByGCID = "" },
+		"version 0":        func(e *externalegress.PolicyChanged) { e.Version = 0 },
+		"negative ceiling": func(e *externalegress.PolicyChanged) { e.DailyCallCeiling = -1 },
 	}
 
 	for name, mutate := range cases {

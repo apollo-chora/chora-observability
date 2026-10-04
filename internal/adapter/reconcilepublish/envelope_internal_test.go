@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	cgcenvelope "github.com/5007-Capstone/chora/libs/chora-go-common/envelope"
+	cgcenvelope "github.com/apollo-chora/chora-common/envelope"
 
-	"github.com/5007-Capstone/chora/services/chora-observability/internal/domain/reconcile"
+	"github.com/apollo-chora/chora-observability/internal/domain/reconcile"
 )
 
 func TestBuildEnvelope_OccurredAtFallback(t *testing.T) {
