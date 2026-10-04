@@ -7,3 +7,8 @@ README.md
 *.out
 coverage.out
 cover.out
+
+# Never send local secrets/config into the Docker build context.
+.env
+.env.*
+!.env.example
