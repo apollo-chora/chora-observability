@@ -32,11 +32,21 @@ go run ./cmd/server
 
 The lookup order is `.env` in the current working directory, then `/app/.env`. Set `CHORA_ENV_FILE` to use another path. Values already present in the process environment always win, so Kubernetes, Cloud Run, Docker, CI, and Secret Manager injection remain authoritative.
 
-For a container, do not bake `.env` into the image. Use Docker's env-file support:
+For a local Docker stack, use PostgreSQL + the Google Pub/Sub emulator:
 
 ```bash
-docker run --rm --env-file .env IMAGE
+cp .env.example .env
+export CHORA_OBSERVABILITY_IMAGE=<your-built-image>
+docker compose -f compose.local.yaml up -d
 ```
+
+`compose.local.yaml` starts PostgreSQL 18, applies the forward database migrations on first initialization, starts the Pub/Sub emulator, creates the service's canonical topics/subscriptions, and then starts observability. It forces `CHORA_TRACING_ENABLED=false` and `CHORA_DECISION_BQ_ENABLED=false`, so local Pub/Sub does not accidentally trigger Cloud Trace or BigQuery ADC calls.
+
+The application still uses the normal Google Pub/Sub client. Setting `PUBSUB_EMULATOR_HOST` makes that client talk to the emulator, so no separate fake event-bus implementation or changed topic semantics are introduced.
+
+Existing GCP deployments are backward-compatible: both GCP-only feature flags default to enabled when absent, `PUBSUB_EMULATOR_HOST` is optional, Secret Manager remains available, and the existing Cloud Build/GKE deployment files are unchanged.
+
+The local Compose file intentionally consumes an already-built service image. The repository's existing Dockerfile is designed for the original Chora monorepo build context and copies `libs/chora-go-common` plus generated `chora-contracts` from outside this standalone repository. Changing that Dockerfile would break the existing CI build contract. Once an image is built by the existing pipeline (or mirrored to another registry), the runtime itself no longer needs GCP credentials.
 
 The checked-in `.env.example` is only a template; `.env` is ignored by Git and excluded from the Docker build context.
 
