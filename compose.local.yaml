@@ -13,6 +13,7 @@ services:
     volumes:
       - observability-postgres:/var/lib/postgresql/data
       - ./deploy/local/init-db.sh:/docker-entrypoint-initdb.d/10-chora-observability.sh:ro
+      - ./migrations:/migrations:ro
 
   pubsub:
     image: gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
