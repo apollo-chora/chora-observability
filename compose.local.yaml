@@ -57,6 +57,7 @@ services:
       CHORA_DB_DSN: postgres://chora:chora@postgres:5432/chora_observability?sslmode=disable
       CHORA_PUBSUB_PROJECT: chora-local
       GOOGLE_CLOUD_PROJECT: chora-local
+      CHORA_SOURCE_PROJECT: chora-local
       PUBSUB_EMULATOR_HOST: pubsub:8085
       CHORA_TRACING_ENABLED: "false"
       CHORA_DECISION_BQ_ENABLED: "false"
