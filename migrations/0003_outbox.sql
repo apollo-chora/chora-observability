@@ -9,8 +9,8 @@
 -- Date     : 2026-05-11
 --
 -- Mirrors the canonical fixture in
---   libs/chora-go-common/outbox/sql_fixtures/outbox_events.up.sql
--- so the existing chora-go-common/outbox PostgresRecorder + Relay drop in
+--   libs/chora-common/outbox/sql_fixtures/outbox_events.up.sql
+-- so the existing chora-common/outbox PostgresRecorder + Relay drop in
 -- without modification.
 --
 -- The chora-observability service emits chora.ai_kernel.token-usage.recorded.v1

@@ -7,7 +7,7 @@
 --
 -- The existing migration 0003_outbox.sql created the operational outbox
 -- (`outbox_events`, `outbox_poll_checkpoints`, `outbox_dead_letters`) using
--- the older chora-go-common/outbox shape. That shape lacks four invariants
+-- the older chora-common/outbox shape. That shape lacks four invariants
 -- the D6.3 multi-tenant chaos contract relies on:
 --
 --   1. tenant_id as a top-level column (Pillar 3 — indexed isolation)

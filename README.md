@@ -294,7 +294,7 @@ This allows existing GCP deployments to continue operating while local Docker de
 The current Dockerfile preserves the original Chora monorepo build contract. Its build context expects:
 
 ```text
-libs/chora-go-common
+libs/chora-common
 chora-contracts/gen/go
 services/chora-observability
 ```
