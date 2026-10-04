@@ -1,194 +1,313 @@
 # chora-observability
 
-Observability supporting domain — TokenUsageLedger + AgentDecisionLog +
-TraceCorrelation + 3-level Budget + cost reconciliation.
+Observability service for Chora. It stores token usage, agent decisions, audit projections, budgets, and trace correlations.
 
-| Aspect | Value |
-|---|---|
-| **Service name** | `chora-observability` |
-| **Surface** | O+ (Observability+) |
-| **Domain** | Observability (supporting) |
-| **Project** | `chora-489812` (platform host) |
-| **Owning team** | Team 3 — Platform |
-| **Database** | `chora_observability` (Cloud SQL Enterprise Plus) |
-| **Topic prefix** | `chora.observability.*` (canonical: `chora.observability.token_usage.recorded.v1`) |
-| **Module** | `github.com/5007-Capstone/chora/services/chora-observability` |
+The recommended deployment is a local Docker container backed by PostgreSQL and the Google Pub/Sub emulator. BigQuery, Cloud Trace, Secret Manager, Cloud SQL, GKE, and other GCP infrastructure are not required for this mode.
 
-## Local configuration
+## Local deployment
 
-The service and the reconciliation job automatically load a dotenv file before reading any configuration.
+### Requirements
 
-Create the local file:
+- Docker with Compose
+- PostgreSQL 18
+- Google Pub/Sub emulator
+- A `walfa/chora-observability` image
+- The observability database migrations applied to PostgreSQL
 
-```bash
-cp .env.example .env
-```
+The service exposes:
 
-Then run the service normally:
-
-```bash
-go run ./cmd/server
-```
-
-The lookup order is `.env` in the current working directory, then `/app/.env`. Set `CHORA_ENV_FILE` to use another path. Values already present in the process environment always win, so Kubernetes, Cloud Run, Docker, CI, and Secret Manager injection remain authoritative.
-
-For a local Docker stack, use PostgreSQL + the Google Pub/Sub emulator:
-
-```bash
-cp .env.example .env
-export CHORA_OBSERVABILITY_IMAGE=<your-built-image>
-docker compose -f compose.local.yaml up -d
-```
-
-`compose.local.yaml` starts PostgreSQL 18, applies the forward database migrations on first initialization, starts the Pub/Sub emulator, creates the service's canonical topics/subscriptions, and then starts observability. It forces `CHORA_TRACING_ENABLED=false` and `CHORA_DECISION_BQ_ENABLED=false`, so local Pub/Sub does not accidentally trigger Cloud Trace or BigQuery ADC calls.
-
-Local Docker also enables `CHORA_STRICT_STARTUP=true`. In strict mode the process refuses to start when the database configuration is absent, the PostgreSQL pool cannot be established, `CHORA_PUBSUB_PROJECT` is absent, or the Pub/Sub client cannot be created. It never silently substitutes in-memory persistence or an in-memory event bus. Startup logs print the resolved strict/tracing/BigQuery/emulator mode before dependency bootstrap.
-
-The application still uses the normal Google Pub/Sub client. Setting `PUBSUB_EMULATOR_HOST` makes that client talk to the emulator, so no separate fake event-bus implementation or changed topic semantics are introduced.
-
-Existing GCP deployments are backward-compatible: both GCP-only feature flags default to enabled when absent, `PUBSUB_EMULATOR_HOST` is optional, Secret Manager remains available, and the existing Cloud Build/GKE deployment files are unchanged.
-
-The local Compose file intentionally consumes an already-built service image. The repository's existing Dockerfile is designed for the original Chora monorepo build context and copies `libs/chora-go-common` plus generated `chora-contracts` from outside this standalone repository. Changing that Dockerfile would break the existing CI build contract. Once an image is built by the existing pipeline (or mirrored to another registry), the runtime itself no longer needs GCP credentials.
-
-The checked-in `.env.example` is only a template; `.env` is ignored by Git and excluded from the Docker build context.
-
-## Aggregates
-
-- **`TokenUsageLedger`** — append-only, billing-grade cost ledger (one row per LLM call). int64 micros (1e-6 USD) throughout.
-- **`AgentDecisionLog`** — append-only, IMDA-tagged AI decision audit trail.
-- **`TraceCorrelation`** — W3C trace_id ↔ span_id ↔ tenant ↔ correlation_id mapping.
-- **`Budget`** — per-tenant per-period cap + threshold-crossings (50/80/100/110%).
-- **`AnomalyDetector`** — pure 3σ statistical detector for rolling 1h cost vs 7d baseline.
-- **`Reconciler`** — daily BigQuery vs Vertex Billing API drift check (±0.01% tolerance).
-
-## Endpoints
-
-| Method | Path | Description |
+| Port | Protocol | Purpose |
 |---|---|---|
-| GET | `/healthz/`, `/readyz` | Health + readiness |
-| POST | `/api/token-usage` | Append a ledger entry |
-| GET | `/api/token-usage` | List entries (paginated, filtered) |
-| GET | `/api/token-usage/cost` | Aggregate cost (int64 micros sum) |
-| GET | `/api/token-usage/aggregate?group_by=model\|agent\|gcid` | Group by dimension |
-| POST | `/api/token-usage/budget` | Set per-tenant period cap |
-| GET | `/api/token-usage/budget?period=YYYY-MM` | Current spend vs cap |
-| **POST** | `/api/token-usage/budget-check` | **3-level cascade pre-check (NEW per S3.3)** |
-| POST | `/api/agent-decisions` | Append AgentDecisionLog |
-| GET | `/api/agent-decisions` | List decisions |
-| GET | `/api/agent-decisions/{id}` | Fetch decision by id |
-| POST | `/api/correlations` | Register a TraceCorrelation |
-| GET | `/api/correlations/{id}` | Fetch a correlation |
-| GET | `/api/cost/cumulative` | Sequel-comic cumulative ticker |
-| GET | `/api/cost/by-act` | By-model cost breakdown |
-| POST | `/api/traces/export` | Spanstore range export to Cloud Trace |
+| `8080` | HTTP | REST API, health and readiness |
+| `9090` | gRPC | Observability gRPC API + health |
 
-## 3-level Budget cascade (per S3.3)
+### Recommended Compose configuration
 
-Per ai-cost-tracking skill — Gateway calls `/api/token-usage/budget-check` BEFORE every LLM invocation:
+If PostgreSQL and the Pub/Sub emulator already exist in your Compose stack, add the service like this:
 
-1. **Per-tenant** HARD CAP — Reason=`tenant_cap_exceeded`
-2. **Per-user** FAIRNESS slice — Reason=`user_cap_exceeded`
-3. **Per-agent** KILL-SWITCH (≥100x baseline) — Reason=`agent_kill_switch`
+```yaml
+chora-observability:
+  image: walfa/chora-observability:latest
+  container_name: chora-observability
+  restart: unless-stopped
 
-Most-restrictive verdict wins. Hard-block returns `retry_after_seconds`. Infrastructure errors fail-open with `infrastructure_fail_open` reason.
+  env_file:
+    - .env
 
-## TokenUsageLedger atomic-write contract (per S3.3)
+  environment:
+    CHORA_STRICT_STARTUP: "true"
 
-The Gateway calls the ledger hook AFTER every successful LLM invocation. ONE call → 3 atomic side-effects:
+    CHORA_DB_DSN: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
 
-1. **Append** TokenUsageLedger entry (append-only invariant preserved)
-2. **Publish** `chora.observability.token_usage.recorded.v1` via outbox (envelope tagged `chora_imda_dimension=accountability` per ADR-141 + `imda_lifecycle_stage=runtime` per Tier 5 D18)
-3. **RecordSpend** on the 3-level Budget cascade (best-effort)
+    GOOGLE_CLOUD_PROJECT: ${GOOGLE_CLOUD_PROJECT}
+    CHORA_PROJECT: ${GOOGLE_CLOUD_PROJECT}
+    CHORA_SOURCE_PROJECT: ${GOOGLE_CLOUD_PROJECT}
+    CHORA_PUBSUB_PROJECT: ${GOOGLE_CLOUD_PROJECT}
+    PUBSUB_EMULATOR_HOST: pubsub-emulator:8685
 
-Atomicity: outbox first; if publish fails, ledger is NOT appended (no phantom entries).
+    CHORA_TRACING_ENABLED: "false"
+    CHORA_DECISION_BQ_ENABLED: "false"
+    CHORA_EVAL_EVIDENCE_BQ: ""
 
-The Gateway-side adapter is `services/chora-model-broker-gateway/internal/adapter/cost/` (HTTP client; gRPC stub replaces this once `chora-contracts/proto/services/observability` lands at M11.4).
+    PORT: "8080"
+    CHORA_GRPC_PORT: "9090"
 
-## pricing.yaml v2026.05.09-1 (per S1.2 schema lockdown)
+  ports:
+    - "8080:8080"
+    - "9090:9090"
 
-Single source of truth for cost computation: `services/chora-observability/config/pricing.yaml`.
+  depends_on:
+    postgres:
+      condition: service_healthy
+    pubsub-init:
+      condition: service_completed_successfully
 
-Covers:
-- **Vertex AI Gemini family** (managed, per-1k-token pricing)
-- **Self-hosted Gemma 4** (GPU-hours-amortized; L4 + A100 SKUs)
-- **BYOA** (`pass_through: true` — tenant pays provider directly)
-
-Compute via:
-- `pricing.ComputeCostMicros(p, prompt, completion, cached)` — managed models
-- `pricing.ComputeGPUCostMicros(p, gpuSeconds)` — self-hosted Gemma
-
-## Reconciliation harness (per S3.3 P6)
-
-Daily Cloud Run Job at 04:00 UTC:
-
-```
-BigQuery SUM(token_usage_ledger.cost_usd_micros)  vs
-Vertex Billing API aggregated_cost   →   ±0.01% tolerance check
-                                              ↓
-                                drift > tolerance →
-                                chora.governance.payment_reconciliation.anomaly.v1
+  stop_grace_period: 30s
 ```
 
-Entrypoint: `cmd/reconcile/main.go`. Adapters: `internal/adapter/bigquery/` + `internal/adapter/billing/`.
+The hostname in `CHORA_DB_DSN` is the Compose service name, not `localhost`. Likewise, `PUBSUB_EMULATOR_HOST` must use the Pub/Sub emulator's Compose service name.
 
-Env config (NEVER inline per CLAUDE.md):
+## Environment
 
-| Var | Default | Purpose |
+A minimal local `.env` can look like:
+
+```dotenv
+POSTGRES_USER=chora
+POSTGRES_PASSWORD=change-me
+POSTGRES_DB=chora_observability
+
+GOOGLE_CLOUD_PROJECT=chora-local
+```
+
+The application can also load a dotenv file itself. It checks `.env` and then `/app/.env`. Set `CHORA_ENV_FILE` to use a different path.
+
+Values already injected into the process environment take precedence over values in a dotenv file. This makes `env_file:` and Compose `environment:` overrides safe to use together.
+
+Never bake a real `.env` into the container image. Local dotenv files are ignored by Git and excluded from the Docker build context.
+
+## Strict startup
+
+Local deployments should use:
+
+```dotenv
+CHORA_STRICT_STARTUP=true
+```
+
+This prevents the service from appearing healthy while silently running without its durable dependencies.
+
+With strict startup enabled, the process exits when:
+
+- database configuration is missing;
+- PostgreSQL bootstrap fails;
+- `CHORA_PUBSUB_PROJECT` is missing;
+- the Pub/Sub client cannot be initialized; or
+- bootstrap unexpectedly leaves the database or Pub/Sub client unwired.
+
+Without strict startup, the legacy development behavior is retained: missing dependencies can fall back to in-memory implementations.
+
+At startup the service logs its resolved runtime mode, for example:
+
+```text
+observability: strict startup ENABLED — durable DB and Pub/Sub are required; in-memory fallbacks are forbidden
+observability: startup config strict=true tracing=false decision_bigquery=false eval_bigquery=false pubsub_emulator=true
+```
+
+## PostgreSQL
+
+For a durable local deployment, set:
+
+```dotenv
+CHORA_DB_DSN=postgres://USER:PASSWORD@postgres:5432/chora_observability?sslmode=disable
+```
+
+The service uses PostgreSQL for the durable ledger, decision log, inbox/outbox, audit projections, and other persistent repositories.
+
+A single PostgreSQL server can host databases for multiple Chora services. Prefer a dedicated database and non-superuser role for observability rather than sharing one application database between services.
+
+Database migrations live in `migrations/`.
+
+The repository also contains `deploy/local/init-db.sh`, which applies forward observability migrations to a newly initialized local PostgreSQL database. Production-only role grants in `9999_grant_app_roles.sql` are intentionally not applied by that local helper.
+
+## Pub/Sub emulator
+
+The service uses the normal Google Pub/Sub client library. No alternate local event implementation is required.
+
+Point it at the emulator with:
+
+```dotenv
+GOOGLE_CLOUD_PROJECT=chora-local
+CHORA_PROJECT=chora-local
+CHORA_SOURCE_PROJECT=chora-local
+CHORA_PUBSUB_PROJECT=chora-local
+PUBSUB_EMULATOR_HOST=pubsub-emulator:8685
+```
+
+`PUBSUB_EMULATOR_HOST` redirects the client to the emulator. `CHORA_PUBSUB_PROJECT` is still required because the service uses it to construct Pub/Sub resources.
+
+The emulator starts empty. Topics and subscriptions must therefore be created before observability starts.
+
+A helper is provided at:
+
+```text
+deploy/local/init-pubsub.sh
+```
+
+A Compose initializer can run it:
+
+```yaml
+pubsub-init:
+  image: gcr.io/google.com/cloudsdktool/google-cloud-cli:slim
+  restart: "no"
+
+  environment:
+    PUBSUB_EMULATOR_HOST: pubsub-emulator:8685
+    CLOUDSDK_CORE_PROJECT: ${GOOGLE_CLOUD_PROJECT}
+
+  volumes:
+    - ./pubsub/init.sh:/init.sh:ro
+
+  entrypoint:
+    - /bin/bash
+    - /init.sh
+
+  depends_on:
+    pubsub-emulator:
+      condition: service_healthy
+```
+
+Then make observability depend on successful completion of that initializer.
+
+The repository helper provisions the canonical inbound subscriptions plus outbound topics needed by the service.
+
+## Disable GCP-only integrations locally
+
+Using a Pub/Sub emulator still requires a project identifier. That does not mean the service should try to use the rest of GCP.
+
+For local Docker deployments use:
+
+```dotenv
+CHORA_TRACING_ENABLED=false
+CHORA_DECISION_BQ_ENABLED=false
+CHORA_EVAL_EVIDENCE_BQ=
+```
+
+This keeps:
+
+- Pub/Sub enabled through the emulator;
+- PostgreSQL enabled locally;
+- Cloud Trace disabled;
+- BigQuery decision mirroring disabled; and
+- BigQuery evaluation evidence disabled.
+
+No Google Cloud credentials or ADC are required for the normal local runtime with these integrations disabled.
+
+## Health checks
+
+HTTP health endpoints:
+
+```text
+GET /healthz/
+GET /readyz
+```
+
+The gRPC server also registers the standard gRPC health service on port `9090`.
+
+When using `CHORA_STRICT_STARTUP=true`, a missing required dependency causes the process to exit rather than exposing a misleading healthy service.
+
+## Main HTTP endpoints
+
+| Method | Path | Purpose |
 |---|---|---|
-| `GOOGLE_CLOUD_PROJECT` | (required) | GCP project the Gateway/Observability run in |
-| `BIGQUERY_DATASET` | `chora_observability_analytics` | Analytics dataset |
-| `RECONCILE_LOOKBACK_DAYS` | `1` | Days to reconcile (default = previous day) |
-| `RECONCILE_TOLERANCE_FRACTION` | `0.0001` | Drift threshold (0.01%) |
-| `BILLING_API_KEY` | — | (Tier 2) prefer WIF impersonation; never key file |
+| GET | `/healthz/` | Liveness |
+| GET | `/readyz` | Readiness |
+| POST | `/api/token-usage` | Record token usage |
+| GET | `/api/token-usage` | Query token usage |
+| GET | `/api/token-usage/cost` | Aggregate cost |
+| GET | `/api/token-usage/aggregate` | Aggregate by model, agent, or GCID |
+| POST | `/api/token-usage/budget` | Set a budget |
+| GET | `/api/token-usage/budget` | Query budget usage |
+| POST | `/api/token-usage/budget-check` | Perform budget pre-check |
+| POST | `/api/agent-decisions` | Record an agent decision |
+| GET | `/api/agent-decisions` | Query agent decisions |
+| GET | `/api/agent-decisions/{id}` | Fetch an agent decision |
+| POST | `/api/correlations` | Register trace correlation |
+| GET | `/api/correlations/{id}` | Fetch trace correlation |
+| GET | `/api/cost/cumulative` | Cumulative cost |
+| GET | `/api/cost/by-act` | Cost breakdown |
 
-## Migrations
+## Configuration files
 
-Two migration files under `migrations/`:
+The runtime image contains:
 
-| File | Status | Source |
-|---|---|---|
-| `0001_initial.sql` | ✓ applied baseline | M10 schema (TokenUsageLedger + AgentDecisionLog + TraceCorrelation + append-only triggers + RLS policies) |
-| `0002_schema_lockdown.sql` | ✓ idempotent (S1.2 — A-Platform-Obs) | Adds `agent_id` / `model_version` / `pricing_config_version` / `traceparent` / `cached_tokens` / 3-level budget tables; ENUMs for `imda_dimension` + `imda_lifecycle_stage` + `autonomy_level`. |
-
-Both migrations use `IF NOT EXISTS` / `IF EXISTS` clauses so they're safe to re-apply.
-
-### Apply path
-
-**M10 dev DB**: not yet provisioned (`gcloud sql instances list` returns 0). Once `chora-infra/terraform/modules/m10-data-plane` is applied:
-
-```bash
-# 1. Set up Cloud SQL Auth Proxy or PgBouncer
-gcloud sql connect chora-cloudsql-platform --user=chora-observability --database=chora_observability
-
-# 2. Apply migrations (idempotent — safe to re-run)
-psql -f services/chora-observability/migrations/0001_initial.sql
-psql -f services/chora-observability/migrations/0002_schema_lockdown.sql
+```text
+/config/PII_Closure_Map.yaml
+/config/pricing.yaml
 ```
 
-A migration runner (e.g. `golang-migrate/migrate`) is a Tier 2 follow-up — every other supporting service uses the same pattern.
+Their paths can be overridden with:
 
-### Apply via the chora-infra Cloud SQL module (Tier 2)
+```dotenv
+CHORA_PII_CLOSURE_MAP_PATH=/config/PII_Closure_Map.yaml
+CHORA_PRICING_CONFIG_PATH=/config/pricing.yaml
+```
 
-`chora-infra/terraform/modules/m10-data-plane` provisions the DB; a follow-up `chora-infra/terraform/modules/migrations` job runs the SQL files post-`terraform apply`. Tracked at AIK-OBS-1 (M11.4 / M12).
+The pricing configuration is used to derive cost information for supported model decisions.
 
-## Build & test
+## Local repository stack
+
+For development of this repository itself, `compose.local.yaml` provides an example stack containing:
+
+```text
+PostgreSQL
+    │
+    ├── migrations
+    │
+chora-observability
+    │
+    └── Pub/Sub client
+             │
+             ▼
+      Pub/Sub emulator
+             │
+             └── pubsub-init
+```
+
+If you already maintain PostgreSQL and Pub/Sub emulator services in a larger Chora Compose stack, use those instead. There is no requirement to run the repository's example Compose file.
+
+## Existing GCP deployment
+
+The repository still contains the existing GCP deployment path and adapters for backward compatibility, including Cloud Build, GKE/Cloud Deploy configuration, Secret Manager, BigQuery, and Cloud Trace.
+
+Those are not required for local Docker deployment.
+
+The feature flags introduced for local deployment preserve the old behavior when they are absent:
+
+- `CHORA_STRICT_STARTUP` defaults to `false`;
+- `CHORA_TRACING_ENABLED` defaults to `true`;
+- `CHORA_DECISION_BQ_ENABLED` defaults to `true`; and
+- `CHORA_EVAL_EVIDENCE_BQ` remains opt-in.
+
+This allows existing GCP deployments to continue operating while local Docker deployments explicitly select only the dependencies they need.
+
+## Building
+
+The current Dockerfile preserves the original Chora monorepo build contract. Its build context expects:
+
+```text
+libs/chora-go-common
+chora-contracts/gen/go
+services/chora-observability
+```
+
+Therefore this standalone repository is currently best treated as a runtime/deployment repository when using the published `walfa/chora-observability` image.
+
+Changing the Dockerfile to build entirely from this standalone repository requires first making the shared Go library and generated contracts independently resolvable modules.
+
+## Tests
+
+Within the original Chora Go workspace:
 
 ```bash
 GOWORK=off go test -coverprofile=cover.out ./...
 GOWORK=off go tool cover -func=cover.out
 ```
-
-Coverage gates per `.claude/rules/development-execution.md`:
-
-| Layer | Threshold | Current |
-|---|---|---|
-| Domain (`internal/domain/...`) | 85% | **94.9%** (ledger), 96% (reconcile), 96.8% (pricing), 100% (anomaly) |
-| Adapter (`internal/adapter/...`) | 60% | **82.9%** (inmem), 71.3% (http), 89.5% (cloudtrace) |
-
-## References
-
-- `docs/architecture-review-inputs-2026-05-07.md` Tier 3 D10 (cost tracking) + D12 (OTLP-everywhere)
-- ADR-141 (IMDA dimension labels reconciliation)
-- ai-cost-tracking skill
-- ai-observability-cloud-trace skill
-- imda-governance-4-dimensions skill
