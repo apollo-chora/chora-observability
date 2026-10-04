@@ -4,10 +4,10 @@ go 1.26.1
 
 require (
 	cloud.google.com/go/bigquery v1.77.0
-	github.com/5007-Capstone/chora/libs/chora-go-common v0.0.0
+	github.com/apollo-chora/chora-common v0.0.0
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.9.2
-	github.com/locoroco-git/Chora-LMS/chora-contracts/gen/go v0.0.0-00010101000000-000000000000
+	github.com/apollo-chora/chora-contracts/gen/go v0.0.0
 	go.opentelemetry.io/otel/sdk v1.44.0
 	google.golang.org/api v0.285.0
 	google.golang.org/grpc v1.82.1
@@ -15,12 +15,6 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 )
 
-// Workspace-resolved at build time via go.work; replace directive makes
-// go.mod resolution work outside workspace mode (e.g. CI tools that
-// inspect a single module).
-replace github.com/5007-Capstone/chora/libs/chora-go-common => ../../libs/chora-go-common
-
-replace github.com/locoroco-git/Chora-LMS/chora-contracts/gen/go => ../../chora-contracts/gen/go
 
 require (
 	cloud.google.com/go v0.123.0 // indirect
