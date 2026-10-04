@@ -43,6 +43,7 @@ import (
 )
 
 func main() {
+	loadEnvFiles()
 	if err := run(context.Background()); err != nil {
 		log.Fatalf("reconcile job failed: %v", err)
 	}
