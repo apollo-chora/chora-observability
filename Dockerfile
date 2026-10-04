@@ -5,9 +5,9 @@
 # DO NOT edit ad-hoc; sync changes back to the template.
 #
 # Build context = this repository.
-# Standard invocation (chora-infra/scripts/build-publish-local.sh):
+# Standard invocation:
 #   docker buildx build --platform=linux/amd64 \
-#     -f services/chora-observability/Dockerfile \
+#     -f Dockerfile \
 #     --build-arg SERVICE_NAME=chora-observability \
 #     --build-arg GIT_SHA=$(git rev-parse --short HEAD) \
 #     --build-arg BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) \
@@ -35,8 +35,8 @@ WORKDIR /src
 RUN apk add --no-cache ca-certificates git
 
 # The service is standalone; shared Chora modules are resolved through Go modules.
-COPY services/${SERVICE_NAME}/ ./services/${SERVICE_NAME}/
-WORKDIR /src/services/${SERVICE_NAME}
+COPY . .
+WORKDIR /src
 
 # Pre-fetch standalone module dependencies.
 RUN go mod download
@@ -79,7 +79,7 @@ COPY --from=builder /out/service /service
 # subscriber loads it at the default relative path
 # config/PII_Closure_Map.yaml (runtime WORKDIR is /). Without this COPY
 # the subscriber boots DISABLED (PII map load error).
-COPY --from=builder /src/services/${SERVICE_NAME}/config/PII_Closure_Map.yaml /config/PII_Closure_Map.yaml
+COPY --from=builder /src/config/PII_Closure_Map.yaml /config/PII_Closure_Map.yaml
 
 # pricing.yaml (CHO-2220) — same story as the PII map above, and it was missed
 # when that one was fixed: the agent-decision cost projector loads it at the
@@ -91,7 +91,7 @@ COPY --from=builder /src/services/${SERVICE_NAME}/config/PII_Closure_Map.yaml /c
 #    directory — agent_decision cost_usd will be blank"
 # Absence stays non-fatal by design (blank, never fabricated), so this failure
 # is silent apart from that one boot line. Do not drop this COPY.
-COPY --from=builder /src/services/${SERVICE_NAME}/config/pricing.yaml /config/pricing.yaml
+COPY --from=builder /src/config/pricing.yaml /config/pricing.yaml
 
 USER nonroot:nonroot
 ENTRYPOINT ["/service"]
