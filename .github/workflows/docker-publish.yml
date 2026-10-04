@@ -19,35 +19,29 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Check out observability repository
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Check out shared Chora common module
         uses: actions/checkout@v7
         with:
-          path: services/chora-observability
+          repository: apollo-chora/chora-common
+          path: chora-common
 
-      - name: Check out shared Go library
+      - name: Check out Chora contracts
         uses: actions/checkout@v7
         with:
-          repository: apollo-chora/chora-go-common
-          path: libs/chora-go-common
+          repository: apollo-chora/chora-contracts
+          path: chora-contracts
 
-      - name: Check out generated contracts
-        uses: actions/checkout@v7
-        with:
-          repository: locoroco-git/Chora-LMS
-          path: _chora-lms
-          sparse-checkout: |
-            chora-contracts/gen/go
-          sparse-checkout-cone-mode: true
-
-      - name: Assemble monorepo build context
+      - name: Verify standalone module inputs
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p chora-contracts
-          cp -R _chora-lms/chora-contracts/gen/go chora-contracts/gen
-          rm -rf _chora-lms
-          test -f services/chora-observability/Dockerfile
-          test -d libs/chora-go-common
+          test -f Dockerfile
+          test -f go.mod
+          test -f chora-common/go.mod
+          test -f chora-contracts/gen/go/go.mod
           test -d chora-contracts/gen/go
 
       - name: Set up QEMU
@@ -77,7 +71,6 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
-          file: services/chora-observability/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
