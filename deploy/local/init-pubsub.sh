@@ -29,6 +29,12 @@ create_sub "chora-observability.tenancy-external_egress_policy-updated" "chora.t
 create_topic "chora.observability.pii.pseudonymise.requested.v1"
 create_sub "chora-observability.closure-pseudonymise" "chora.observability.pii.pseudonymise.requested.v1"
 
+# Outbound topics used by the service's outbox/evidence paths. They do not
+# need local subscriptions unless another local service consumes them.
+create_topic "chora.governance.evidence.recorded.v1"
+create_topic "chora.observability.sink_failure.recorded.v1"
+create_topic "chora.observability.account.pseudonymised.v1"
+
 while read -r topic sub; do
   create_topic "$topic"
   create_sub "$sub" "$topic"
