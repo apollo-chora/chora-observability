@@ -70,7 +70,7 @@ func TestLoadDotEnv_LoadsValuesWithoutOverwritingExistingEnv(t *testing.T) {
 	t.Setenv("DOTENV_TEST_EXISTING", "process-value")
 
 	path := t.TempDir() + "/.env"
-	content := "DOTENV_TEST_NEW=loaded-value\nDOTENV_TEST_EXISTING=file-value\nexport DOTENV_TEST_QUOTED="hello world"\n# comment\n"
+	content := "DOTENV_TEST_NEW=loaded-value\nDOTENV_TEST_EXISTING=file-value\nexport DOTENV_TEST_QUOTED=\"hello world\"\n# comment\n"
 	if err := os.WriteFile(path, []byte(content), 0600); err != nil {
 		t.Fatal(err)
 	}
