@@ -4,7 +4,7 @@
 # Generated from chora-infra/templates/Dockerfile.go-service.
 # DO NOT edit ad-hoc; sync changes back to the template.
 #
-# Build context = repo root (monorepo). The build uses a minimal go.work
+# Build context = this repository.
 # synthesised inside the image listing only this service + libs/chora-go-common.
 # Standard invocation (chora-infra/scripts/build-publish-local.sh):
 #   docker buildx build --platform=linux/amd64 \
@@ -35,39 +35,9 @@ WORKDIR /src
 
 RUN apk add --no-cache ca-certificates git
 
-# Shared libs first (cache-friendly across rebuilds).
-COPY libs/chora-go-common/ ./libs/chora-go-common/
+# The service is standalone; shared Chora modules are resolved through Go modules.\n\nCOPY services/${SERVICE_NAME}/ ./services/${SERVICE_NAME}/\n\nWORKDIR /src/services/${SERVICE_NAME}
 
-# Generated Protobuf Go code — chora-observability imports
-# chora-contracts/gen/go/chora/{consumption,tenancy,common}/v1 for the
-# familiar-growth event types decoded by internal/adapter/events/protodecode.
-COPY chora-contracts/gen/go/ ./chora-contracts/gen/go/
-
-# This service.
-COPY services/${SERVICE_NAME}/ ./services/${SERVICE_NAME}/
-
-# Synthesise a minimal go.work — service + shared lib + contracts only.
-# This avoids the full repo's go.work (which lists ~30 modules that aren't
-# all in this image).
-RUN cat > /src/go.work <<EOWORK
-go 1.26.1
-
-use (
-	./libs/chora-go-common
-	./chora-contracts/gen/go
-	./services/${SERVICE_NAME}
-)
-EOWORK
-
-# Note: workspace mode is ON (default); the synthesised go.work resolves
-# the libs/chora-go-common replace + dep graph. We do NOT run 
-# because the dep set is already correct in the service's go.mod (locally
-# verified via the full workspace).
-
-WORKDIR /src/services/${SERVICE_NAME}
-
-# Pre-fetch direct deps (workspace mode reads go.work + per-module go.mod).
-#  is idempotent + uses the Go module proxy + cache.
+# Pre-fetch standalone module dependencies.
 RUN go mod download
 
 ENV CGO_ENABLED=0 \
