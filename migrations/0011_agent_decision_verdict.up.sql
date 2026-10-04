@@ -1,0 +1,46 @@
+-- =============================================================================
+-- chora-observability : 0011_agent_decision_verdict.up.sql
+--
+-- Domain        : Observability (supporting/platform)
+-- Database      : chora_observability
+-- Date          : 2026-06-10
+-- Jira          : CHO-1700 (O+ Decision Traces reasoning-chain + critic verdict)
+-- Companion     : chora-contracts/proto/events/observability/agent_decision.proto
+--                 (field-21 attributes map; key "decision" per ADR-167 D5)
+--
+-- Purpose:
+--   The O+ Decision Traces DECISION TYPE column showed the base decision_type
+--   ENUM value (`respond`) for every qgen decision because the qgen
+--   quality-gate VERDICT (accepted | rejected | completed_with_warning |
+--   refused | retry) had nowhere to persist on the read model. The verdict
+--   already rides the proto field-21 attributes map under key "decision" (the
+--   producer emits it today); only the consumer dropped it.
+--
+--   This migration adds the additive, nullable projection column the ADR-167
+--   binding writes (agent_decision_binding.go extracts attributes["decision"]),
+--   so the gateway's mapAgentDecision can surface the human-meaningful verdict
+--   in the DECISION TYPE column + the reasoning-panel per-agent step.
+--
+-- Distinct from decision_type:
+--   decision_type is the 4-value canonical ENUM (route | escalate | refuse |
+--   respond) the DB type constrains. The verdict is a richer, free-form
+--   per-decision outcome that does NOT fit that ENUM — hence a separate
+--   free-form VARCHAR(32) column, NOT a CHECK-constrained set (a future verdict
+--   kind must not NACK a real decision → DLQ over an unrecognised value). The
+--   O+ column simply renders whatever string is present, falling back to
+--   decision_type when NULL. NULL = non-verdict decision (routing-only /
+--   non-qgen agents).
+--
+-- Append-only safety:
+--   agent_decision_log carries BEFORE-UPDATE / BEFORE-DELETE triggers
+--   (enforce_adl_append_only, migration 0001). ALTER TABLE ADD COLUMN is DDL,
+--   not a row UPDATE — the row-level triggers do not fire on schema change, so
+--   an additive nullable column is safe and does not violate the append-only
+--   invariant. No existing row is rewritten (NULL backfill is metadata-only on
+--   Postgres for a nullable-without-default column).
+--
+-- Idempotent: ADD COLUMN IF NOT EXISTS.
+-- =============================================================================
+
+ALTER TABLE agent_decision_log
+    ADD COLUMN IF NOT EXISTS verdict VARCHAR(32) NULL;

@@ -1,0 +1,43 @@
+-- =============================================================================
+-- chora-observability : 0012_agent_decision_prompt_conditions.up.sql
+--
+-- Domain        : Observability (supporting/platform)
+-- Database      : chora_observability
+-- Date          : 2026-06-28
+-- ADR           : ADR-197 M-A.4 (durable prompt explainability)
+-- Companion     : chora-contracts/proto/events/observability/agent_decision.proto
+--                 (field-21 attributes map; keys prefixed "prompt_conditions."
+--                 per ADR-167 D5 — NO proto change)
+--
+-- Purpose:
+--   The O+ Decision Traces reasoning panel must durably record WHICH prompt
+--   conditions shaped a given agent decision (e.g. {"intent":"new_question",
+--   "difficulty":"hard"}). The producer already emits these on the proto
+--   field-21 attributes map under keys prefixed `prompt_conditions.`; only the
+--   consumer dropped them.
+--
+--   This migration adds the additive, nullable JSONB projection column the
+--   ADR-197 binding writes (agent_decision_binding.go collects every
+--   attributes["prompt_conditions.<key>"] into a map with the prefix stripped),
+--   so the read model + GET /api/agent-decisions can surface the conditions a
+--   decision was made under.
+--
+-- Shape:
+--   JSONB (a flat string→string object). NULL = no recorded conditions
+--   (routing-only / pre-ADR-197 decisions). A free-form object, NOT a
+--   CHECK-constrained set — a future condition key must not NACK a real decision
+--   to the DLQ over an unrecognised name.
+--
+-- Append-only safety:
+--   agent_decision_log carries BEFORE-UPDATE / BEFORE-DELETE triggers
+--   (enforce_adl_append_only, migration 0001). ALTER TABLE ADD COLUMN is DDL,
+--   not a row UPDATE — the row-level triggers do not fire on schema change, so
+--   an additive nullable column is safe and does not violate the append-only
+--   invariant. No existing row is rewritten (NULL backfill is metadata-only on
+--   Postgres for a nullable-without-default column).
+--
+-- Idempotent: ADD COLUMN IF NOT EXISTS.
+-- =============================================================================
+
+ALTER TABLE agent_decision_log
+    ADD COLUMN IF NOT EXISTS prompt_conditions JSONB NULL;

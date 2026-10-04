@@ -1,0 +1,214 @@
+# =============================================================================
+# Chora pricing-config — versioned model pricing for the O+ agent-decision
+# cost projection.
+#
+# Source-of-truth: ai-cost-tracking skill ("Pricing config (versioned YAML) —
+# Pricing is data, not code. Versioned per change; pricing_version written on
+# every ledger row for retroactive correctness").
+#
+# Chora micro-USD canonical: 1e-6 USD = 1 micros. Costs are expressed
+# per-1k-tokens for managed models, and amortized per GPU-hour for self-hosted
+# Gemma.
+#
+# ⚠ SCOPE — READ BEFORE EDITING (CHO-2220, 2026-07-16)
+# This file does NOT price the TokenUsageLedger, despite what its header used
+# to imply. The ledger's cost_micros and the per-tenant budget DebitSpent are
+# both computed inside chora-model-gateway from a SEPARATE hardcoded table
+# (internal/adapter/vendors/gemini/gemini.go: geminiPricing) and arrive here
+# already-costed on the event. The ONLY consumer of this file is the O+
+# agent-decision cost column (cmd/server/agent_decision_binding.go), because
+# the AgentDecisionLogged proto carries no cost field.
+#
+# Two tables therefore price the same models. They MUST be changed together —
+# they had drifted (this file at Gemini 2.5 Flash's preview-era rates, the
+# gateway at older ones still) and the accurate copy was the inert one. A
+# unification story collapses them onto one descriptor; until then, any edit
+# here needs the mirror edit in gemini.go.
+#
+# ⚠ KEY FORMAT = BARE MODEL ID, exactly as it appears on the wire.
+# This file was previously keyed "{provider}/{model_id}" (vertex_ai/...). No
+# producer has ever emitted that form — agents send their bare logical_model_id
+# — so every lookup missed in production and the O+ cost column was blank for
+# every model, for every decision, since this file was written. Only the test
+# fixtures built the prefixed key, which is why CI stayed green over it. Key by
+# what the wire carries; drive tests with the same.
+#
+# PROVENANCE: every Gemini rate below comes from the published Vertex AI price
+# list (https://cloud.google.com/vertex-ai/generative-ai/pricing), cross-checked
+# against the Billing Catalog API (service C7E2-9256-1C43 "Vertex AI").
+# chora-489812 has no billing export, so no invoice-level reconciliation exists.
+#
+# ⚠ WHERE THE TWO DISAGREE, THE PAGE WINS. The SKU catalogue keeps preview-era
+# SKUs beside GA ones and its names are grammatically ambiguous — "Gemini 2.5
+# Flash Image Input" ($0.15) is a stale preview rate, while the page prices
+# gemini-2.5-flash-image input at $0.30. Trusting that SKU cost a 2x under-bill
+# on this file's first pass. Read the whole SKU family, never one name.
+#
+# Owning service : chora-observability. Shipped into the image by the service
+#                   Dockerfile (runtime WORKDIR is /, so the default
+#                   CHORA_PRICING_CONFIG_PATH=config/pricing.yaml resolves to
+#                   /config/pricing.yaml). Absence is non-fatal — cost goes
+#                   blank, never fabricated.
+# =============================================================================
+
+version: "2026.07.16-2"
+effective_from: "2026-07-16T00:00:00Z"
+
+# Single-source price table. Key format: the BARE model id on the wire.
+#
+# ⚠ These rates MUST equal chora-model-gateway's geminiPricing
+# (internal/adapter/vendors/gemini/gemini.go). Two tables price the same models
+# — the exact duplication that caused CHO-2220, where they had drifted 2x apart
+# and the accurate copy was the inert one. Until they are unified onto one
+# descriptor, TestDecisionCostCalculator_MatchesTheGatewayTable is the only
+# thing keeping them honest. Change both, or change neither.
+#
+# Tiering is NOT modelled: gemini-2.5-pro doubles above a 200K context and
+# 3.5-flash is +10% off-Global. Both would UNDER-bill. Our traffic is Global and
+# well under 200K; if that changes this needs a context/region dimension, not a
+# fudged rate.
+prices:
+
+  # ---------------------------------------------------------------------------
+  # Vertex AI — Gemini family (managed).
+  #
+  # cache_per_1k prices context-cached input. It was 0 in this file's first pass
+  # (mirroring the gateway) — that was an under-bill wearing a simplification's
+  # clothes, since Vertex publishes real "... Input Caching" SKUs. Now billed at
+  # the published cache rate in both tables.
+  # ---------------------------------------------------------------------------
+
+  gemini-2.5-flash:
+    # page: in $0.30 / out $2.50 / cached $0.03 per 1M.
+    # ⚠ The catalogue carries TWO 2.5-flash families: GA ($0.30/$2.50) and
+    # pre-GA ($0.15/$0.60). gemini-2.5-flash is GA — CONFIRMED against the
+    # published price list 2026-07-16 (the SKU names alone were ambiguous).
+    # This is the highest-leverage number in the file: 2.5-flash is ~78% of all
+    # live traffic. No billing export exists, so it has never been reconciled
+    # against an actual invoice.
+    input_per_1k:   0.00030
+    output_per_1k:  0.00250
+    cache_per_1k:   0.00003
+
+  gemini-2.5-pro:
+    # page: in $1.25 / out $10.00 / cached $0.13 per 1M (<=200K context tier).
+    # Output was 0.005 here (and $5.00/1M in the gateway) — half the real rate.
+    input_per_1k:   0.00125
+    output_per_1k:  0.01000
+    cache_per_1k:   0.00013
+
+  gemini-2.5-flash-lite:
+    # page: in $0.10 / out $0.40 / cached $0.01 per 1M.
+    input_per_1k:   0.00010
+    output_per_1k:  0.00040
+    cache_per_1k:   0.00001
+
+  gemini-3.5-flash:
+    # page+SKU: in $1.50 / out $9.00 / cached $0.15 per 1M (Global).
+    # 278 live calls in the 25d to 2026-07-16, all previously booked at $0.
+    input_per_1k:   0.00150
+    output_per_1k:  0.00900
+    cache_per_1k:   0.00015
+
+  gemini-3.1-flash-lite:
+    # SKU: in $0.25 / out $1.50 / cached $0.025 per 1M (Global).
+    input_per_1k:   0.00025
+    output_per_1k:  0.00150
+    cache_per_1k:   0.000025
+
+  # --- Image-generating models -----------------------------------------------
+  # Gemini bills a generated image as OUTPUT TOKENS (~1290 per image), so the
+  # output rate covers image generation directly. The page also lists a cheaper
+  # TEXT-output rate for these models; we carry the image rate because the qgen
+  # scene path always sets response_modality=IMAGE. A caller asking one of them
+  # for text would be over-billed — revisit if one ever does.
+
+  gemini-2.5-flash-image:
+    # page: in $0.30 / image-out $30.00 per 1M ⇒ ≈ $0.039 per generated image.
+    # ⚠ input was WRONG at 0.00015 on this file's first pass — read off the
+    # stale preview-era SKU "Gemini 2.5 Flash Image Input" ($0.15). A 2x
+    # under-bill. cached $0.03 is INFERRED from the 2.5-flash base (the page and
+    # catalogue give this model none); never exercised, as scene generation is
+    # single-turn and carries no cached tokens.
+    input_per_1k:   0.00030
+    output_per_1k:  0.03000
+    cache_per_1k:   0.00003
+
+  gemini-3.1-flash-image:
+    # page+SKU: in $0.50 / image-out $60.00 / cached $0.05 per 1M.
+    # ≈ $0.077 per generated image.
+    input_per_1k:   0.00050
+    output_per_1k:  0.06000
+    cache_per_1k:   0.00005
+
+  gemini-3-pro-image:
+    # page+SKU: in $2.00 / image-out $120.00 / cached $0.20 per 1M.
+    # ≈ $0.155 per generated image. The qgen scene default as of CHO-2220
+    # (owner: "cost is acceptable for the increased quality").
+    input_per_1k:   0.00200
+    output_per_1k:  0.12000
+    cache_per_1k:   0.00020
+
+  # ---------------------------------------------------------------------------
+  # DELIBERATELY ABSENT — do not "complete" this table with guesses.
+  #
+  #   gemini-3.1-pro-preview  — no SKU exists in the Vertex catalogue at all
+  #                             (161 live calls in the 25d to 2026-07-16). $0
+  #                             may be correct while it is unbilled and becomes
+  #                             wrong silently at GA. Absent ⇒ cost renders
+  #                             blank in O+, which is honest; the gateway logs
+  #                             a loud unpriced-model warn on every call.
+  #   gemini-3-flash-preview  — a "Gemini 3 Flash" GA SKU family exists
+  #                             ($0.50/$3.00) but a preview model cannot be
+  #                             confirmed to bill under it. Guessing risks
+  #                             OVER-billing — fabrication in the other
+  #                             direction.
+  # ---------------------------------------------------------------------------
+
+  # ---------------------------------------------------------------------------
+  # Vertex AI — embeddings
+  # ---------------------------------------------------------------------------
+
+  text-embedding-004:
+    input_per_1k:   0.000025
+    output_per_1k:  0          # embeddings have no output tokens
+    cache_per_1k:   0
+
+  # ---------------------------------------------------------------------------
+  # Self-hosted Gemma 4 (per-tenant LoRA) — GPU-hours amortized, NOT per-token.
+  # ---------------------------------------------------------------------------
+
+  gemma-4-9b-instruct:
+    pricing_model: gpu_hours_amortized
+    gpu_class: L4
+    amortized_per_gpu_hour: 0.95
+    tokens_per_gpu_hour_estimate: 360000
+    # Per-call cost = (request_gpu_seconds / 3600) * amortized_per_gpu_hour.
+
+  gemma-4-27b-instruct:
+    pricing_model: gpu_hours_amortized
+    gpu_class: A100
+    amortized_per_gpu_hour: 3.40
+    tokens_per_gpu_hour_estimate: 180000
+
+  # ---------------------------------------------------------------------------
+  # BYOA — pass-through (tenant supplies key + pays provider directly)
+  # ---------------------------------------------------------------------------
+
+  gpt-4o:
+    pass_through: true
+  gpt-4o-mini:
+    pass_through: true
+  claude-3-5-sonnet:
+    pass_through: true
+
+# Reconciliation policy:
+#   - Nightly Cloud Run Job recomputes cost_usd_at_time for any rows whose
+#     pricing_version was retroactively replaced (e.g., by negotiated
+#     enterprise rates). Idempotent; safe to re-run.
+#   - BigQuery streaming partition is rewritten via MERGE on (ledger_id).
+reconciliation:
+  cron: "0 3 * * *"          # daily 03:00 UTC
+  lookback_days: 30
+  bigquery_dataset: chora_observability_analytics
+  bigquery_table: token_usage_ledger
