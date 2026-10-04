@@ -98,3 +98,18 @@ func TestLoadDotEnv_RejectsMalformedEntry(t *testing.T) {
 		t.Fatal("expected malformed dotenv entry to fail")
 	}
 }
+
+func TestEnvEnabled(t *testing.T) {
+	t.Setenv("FEATURE_X", "false")
+	if envEnabled("FEATURE_X", true) {
+		t.Fatal("false should disable feature")
+	}
+	t.Setenv("FEATURE_X", "yes")
+	if !envEnabled("FEATURE_X", false) {
+		t.Fatal("yes should enable feature")
+	}
+	t.Setenv("FEATURE_X", "unexpected")
+	if !envEnabled("FEATURE_X", true) {
+		t.Fatal("invalid value should preserve default")
+	}
+}
