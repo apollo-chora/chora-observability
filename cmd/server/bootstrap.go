@@ -106,6 +106,9 @@ func bootstrapPubSubClient(ctx context.Context) (cgcpubsub.CloudPubSubClient, fu
 	if project == "" {
 		return nil, nil
 	}
+	if emulator := os.Getenv("PUBSUB_EMULATOR_HOST"); emulator != "" {
+		log.Printf("observability: Pub/Sub emulator configured (host=%s project=%s)", emulator, project)
+	}
 	cli, err := cgcpubsub.NewGCPClient(ctx, project)
 	if err != nil {
 		log.Printf("observability: pubsub client init failed: %v — falling back to in-memory recorder", err)
