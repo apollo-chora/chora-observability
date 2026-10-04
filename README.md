@@ -42,6 +42,8 @@ docker compose -f compose.local.yaml up -d
 
 `compose.local.yaml` starts PostgreSQL 18, applies the forward database migrations on first initialization, starts the Pub/Sub emulator, creates the service's canonical topics/subscriptions, and then starts observability. It forces `CHORA_TRACING_ENABLED=false` and `CHORA_DECISION_BQ_ENABLED=false`, so local Pub/Sub does not accidentally trigger Cloud Trace or BigQuery ADC calls.
 
+Local Docker also enables `CHORA_STRICT_STARTUP=true`. In strict mode the process refuses to start when the database configuration is absent, the PostgreSQL pool cannot be established, `CHORA_PUBSUB_PROJECT` is absent, or the Pub/Sub client cannot be created. It never silently substitutes in-memory persistence or an in-memory event bus. Startup logs print the resolved strict/tracing/BigQuery/emulator mode before dependency bootstrap.
+
 The application still uses the normal Google Pub/Sub client. Setting `PUBSUB_EMULATOR_HOST` makes that client talk to the emulator, so no separate fake event-bus implementation or changed topic semantics are introduced.
 
 Existing GCP deployments are backward-compatible: both GCP-only feature flags default to enabled when absent, `PUBSUB_EMULATOR_HOST` is optional, Secret Manager remains available, and the existing Cloud Build/GKE deployment files are unchanged.
