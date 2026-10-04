@@ -98,6 +98,11 @@ const (
 func main() {
 	loadEnvFiles()
 
+	strictStartup := envEnabled("CHORA_STRICT_STARTUP", false)
+	if strictStartup {
+		log.Printf("observability: strict startup ENABLED — durable DB and Pub/Sub are required; in-memory fallbacks are forbidden")
+	}
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
@@ -143,6 +148,8 @@ func main() {
 	if pool != nil {
 		ledgerRepo = pg.NewLedgerRepository(pg.NewPgxPoolQuerier(pool))
 		log.Printf("observability: pgx LedgerRepository wired (pool=chora_observability)")
+	} else if strictStartup {
+		log.Fatal("observability: strict startup invariant violated: database pool is nil")
 	}
 
 	pubsubClient, pubsubShutdown := bootstrapPubSubClient(ctx)
@@ -157,6 +164,9 @@ func main() {
 		bus = cgcpubsub.NewCloudPublisher(pubsubClient)
 		log.Printf("observability: Cloud Pub/Sub client wired (project=%s)", os.Getenv("CHORA_PUBSUB_PROJECT"))
 	} else {
+		if strictStartup {
+			log.Fatal("observability: strict startup invariant violated: Pub/Sub client is nil")
+		}
 		bus = cgcpubsub.NewInMemoryBus()
 		log.Printf("observability: in-memory Pub/Sub bus wired (CHORA_PUBSUB_PROJECT unset)")
 	}
