@@ -291,23 +291,19 @@ This allows existing GCP deployments to continue operating while local Docker de
 
 ## Building
 
-The current Dockerfile preserves the original Chora monorepo build contract. Its build context expects:
+The Dockerfile builds from this standalone repository. Shared Chora modules (`chora-common`, `chora-contracts/gen/go`) are resolved through Go modules (pinned pseudo-versions in `go.mod`), so no sibling checkout is required:
 
-```text
-libs/chora-common
-chora-contracts/gen/go
-services/chora-observability
+```bash
+docker buildx build --platform=linux/amd64 \
+  -f Dockerfile \
+  --build-arg GIT_SHA=$(git rev-parse --short HEAD) \
+  --build-arg BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) \
+  -t chora-observability:${TAG} .
 ```
-
-Therefore this standalone repository is currently best treated as a runtime/deployment repository when using the published `walfa/chora-observability` image.
-
-Changing the Dockerfile to build entirely from this standalone repository requires first making the shared Go library and generated contracts independently resolvable modules.
 
 ## Tests
 
-Within the original Chora Go workspace:
-
 ```bash
-GOWORK=off go test -coverprofile=cover.out ./...
-GOWORK=off go tool cover -func=cover.out
+go test -coverprofile=cover.out ./...
+go tool cover -func=cover.out
 ```
