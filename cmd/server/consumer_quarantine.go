@@ -1,10 +1,10 @@
 // consumer_quarantine.go — ADR-167 Plane-4 consumer-side fail-loud.
 //
-// The token_usage + agent_decision Pub/Sub bindings proto.Unmarshal an
+// The token_usage + agent_decision JetStream bindings proto.Unmarshal an
 // inbound message and call the typed consumer's Handle. When the message is
 // MALFORMED — un-decodable proto, or a structurally-invalid event the
-// consumer's validation rejects — the broker would normally Nack → retry →
-// (eventually) route to the Pub/Sub-side DLQ subscription. That is correct,
+// consumer's validation rejects — the broker would normally Nak → retry →
+// (eventually) route to the broker-side DLQ. That is correct,
 // but it is INVISIBLE to the chora-observability operator + the O+ /
 // chora-governance surface until someone inspects the broker DLQ.
 //
@@ -19,7 +19,7 @@
 //     via the same AlertSink the dispatcher uses.
 //
 // The wrapper still returns the original error to the binding so the broker
-// ALSO Nacks (defence in depth — the local quarantine and the broker DLQ are
+// ALSO Naks (defence in depth — the local quarantine and the broker DLQ are
 // independent surfaces; neither is allowed to be the single point of trust).
 //
 // Why Insert-then-Deadletter: outbox_dead_letters.outbox_event_id is a FK to
@@ -35,18 +35,18 @@ import (
 	"log"
 	"time"
 
-	cgcpubsub "github.com/apollo-chora/chora-common/pubsub"
+	"github.com/apollo-chora/chora-common/eventbus"
 	obsoutbox "github.com/apollo-chora/chora-observability/internal/adapter/outbox"
 )
 
-// quarantiningHandler wraps a downstream pubsub.Handler with the ADR-167
+// quarantiningHandler wraps a downstream eventbus.Handler with the ADR-167
 // Plane-4 fail-loud quarantine: on handler error it writes a local
 // dead-letter row + emits a governance alert + logs at error, then returns
-// the original error so the broker also Nacks.
+// the original error so the broker also Naks.
 type quarantiningHandler struct {
 	consumerName string
 	topic        string
-	inner        cgcpubsub.Handler
+	inner        eventbus.Handler
 	store        obsoutbox.Store
 	alert        obsoutbox.AlertSink
 	logger       obsoutbox.Logger
@@ -65,8 +65,8 @@ type quarantineDeps struct {
 
 // withQuarantine wraps inner with consumer-side fail-loud handling. When the
 // store is nil (dev path without a DB pool) the wrapper degrades to
-// log-at-error + alert (still never silent); the broker Nack remains.
-func withQuarantine(inner cgcpubsub.Handler, deps quarantineDeps) cgcpubsub.Handler {
+// log-at-error + alert (still never silent); the broker Nak remains.
+func withQuarantine(inner eventbus.Handler, deps quarantineDeps) eventbus.Handler {
 	if inner == nil {
 		panic("consumer_quarantine: nil inner handler")
 	}
@@ -90,7 +90,7 @@ func withQuarantine(inner cgcpubsub.Handler, deps quarantineDeps) cgcpubsub.Hand
 	return h.handle
 }
 
-func (q *quarantiningHandler) handle(ctx context.Context, msg *cgcpubsub.Message) error {
+func (q *quarantiningHandler) handle(ctx context.Context, msg eventbus.Message) error {
 	err := q.inner(ctx, msg)
 	if err == nil {
 		return nil
@@ -116,7 +116,7 @@ func (q *quarantiningHandler) handle(ctx context.Context, msg *cgcpubsub.Message
 // payload is preserved in the synthetic outbox_events row so it is replayable.
 // Best-effort: a quarantine-store failure is logged but never masks the
 // original error (the broker Nack still fires).
-func (q *quarantiningHandler) quarantineToStore(ctx context.Context, rowID, tenantID string, msg *cgcpubsub.Message, reason string) {
+func (q *quarantiningHandler) quarantineToStore(ctx context.Context, rowID, tenantID string, msg eventbus.Message, reason string) {
 	if q.store == nil {
 		// Dev path (no DB pool) — the error log + alert above are the surfaces.
 		return
@@ -180,14 +180,12 @@ func (q *quarantiningHandler) emitAlert(ctx context.Context, rowID, tenantID, re
 }
 
 // quarantineIdentity extracts a stable (event_id, tenant_id) for the
-// quarantine row from the message routing attributes. A malformed proto body
-// may still carry valid routing attrs; when even those are absent we synthesise
-// a time-based row id so the quarantine never collides + is never blank.
-func quarantineIdentity(consumerName string, msg *cgcpubsub.Message) (rowID, tenantID string) {
-	if msg != nil {
-		rowID = msg.Envelope.EventID
-		tenantID = msg.Envelope.TenantID
-	}
+// quarantine row from the message envelope. A malformed proto body may still
+// carry a valid envelope; when even that is absent we synthesise a time-based
+// row id so the quarantine never collides + is never blank.
+func quarantineIdentity(consumerName string, msg eventbus.Message) (rowID, tenantID string) {
+	rowID = msg.Envelope.EventID
+	tenantID = msg.Envelope.TenantID
 	if rowID == "" {
 		rowID = "quarantine-" + consumerName + "-" + time.Now().UTC().Format("20060102T150405.000000000")
 	}
@@ -197,8 +195,8 @@ func quarantineIdentity(consumerName string, msg *cgcpubsub.Message) (rowID, ten
 	return rowID, tenantID
 }
 
-func clonePayload(msg *cgcpubsub.Message) []byte {
-	if msg == nil || msg.Payload == nil {
+func clonePayload(msg eventbus.Message) []byte {
+	if msg.Payload == nil {
 		return []byte{}
 	}
 	return append([]byte(nil), msg.Payload...)

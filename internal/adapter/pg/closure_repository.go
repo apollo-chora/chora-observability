@@ -5,7 +5,7 @@
 // Replaces events.NewInMemoryClosureRepo — the process-local map whose ack
 // state (which (tenant, gcid) pairs this domain has already pseudonymised)
 // was lost on every pod restart. That in-memory repo was wired UNGATED:
-// gated on `pubsubClient != nil` only, never on pool health (see
+// gated on the Pub/Sub client being present only, never on pool health (see
 // docs/references/w0-f1-inmemory-inventory.md §6 item 4).
 //
 // SQL contract:

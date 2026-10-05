@@ -1,6 +1,6 @@
 // Pull-loop adapter binding the federated closure-saga subscriber to the
-// cgcpubsub CloudSubscriber (CHO-1719 gap 4). The CloudSubscriber acks on
-// nil and nacks on error (ack-after-processing per D6.2).
+// eventbus consume loop (CHO-1719 gap 4). The JetStream consume loop acks on
+// nil and naks on error (ack-after-processing per D6.2).
 package events
 
 import (
@@ -8,15 +8,15 @@ import (
 	"encoding/json"
 	"errors"
 
-	cgcpubsub "github.com/apollo-chora/chora-common/pubsub"
+	"github.com/apollo-chora/chora-common/eventbus"
 )
 
-// ClosurePullHandler adapts the ClosureSubscriber to a cgcpubsub.Handler.
+// ClosurePullHandler adapts the ClosureSubscriber to an eventbus.Handler.
 // Payload is the orchestrator's JSON fan-out body; traceparent/tracestate
 // fall back to the envelope when absent from the payload.
-func ClosurePullHandler(s *ClosureSubscriber) cgcpubsub.Handler {
-	return func(ctx context.Context, msg *cgcpubsub.Message) error {
-		if s == nil || msg == nil {
+func ClosurePullHandler(s *ClosureSubscriber) eventbus.Handler {
+	return func(ctx context.Context, msg eventbus.Message) error {
+		if s == nil {
 			return errors.New("events: closure pull handler not initialised")
 		}
 		var p PseudonymiseRequestedPayload

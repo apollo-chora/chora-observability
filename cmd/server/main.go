@@ -42,8 +42,8 @@ import (
 	observabilityv1 "github.com/apollo-chora/chora-contracts/gen/go/chora/services/observability/v1"
 
 	"github.com/apollo-chora/chora-common/durabilityguard"
+	"github.com/apollo-chora/chora-common/eventbus"
 	"github.com/apollo-chora/chora-common/idempotent"
-	cgcpubsub "github.com/apollo-chora/chora-common/pubsub"
 	bq "github.com/apollo-chora/chora-observability/internal/adapter/bigquery"
 	"github.com/apollo-chora/chora-observability/internal/adapter/cloudtrace"
 	"github.com/apollo-chora/chora-observability/internal/adapter/events"
@@ -100,7 +100,7 @@ func main() {
 
 	strictStartup := envEnabled("CHORA_STRICT_STARTUP", false)
 	if strictStartup {
-		log.Printf("observability: strict startup ENABLED — durable DB and Pub/Sub are required; in-memory fallbacks are forbidden")
+		log.Printf("observability: strict startup ENABLED — durable DB and NATS event bus are required; in-memory fallbacks are forbidden")
 	}
 
 	port := os.Getenv("PORT")
@@ -112,12 +112,11 @@ func main() {
 	defer stop()
 
 	log.Printf(
-		"observability: startup config strict=%t tracing=%t decision_bigquery=%t eval_bigquery=%t pubsub_emulator=%t",
+		"observability: startup config strict=%t tracing=%t decision_bigquery=%t eval_bigquery=%t",
 		strictStartup,
 		envEnabled("CHORA_TRACING_ENABLED", true),
 		envEnabled("CHORA_DECISION_BQ_ENABLED", true),
 		strings.TrimSpace(os.Getenv("CHORA_EVAL_EVIDENCE_BQ")) != "",
-		strings.TrimSpace(os.Getenv("PUBSUB_EMULATOR_HOST")) != "",
 	)
 
 	// OTLP wiring per Tier 3 D13 — direct to Cloud Trace in prod.
@@ -161,24 +160,11 @@ func main() {
 		log.Fatal("observability: strict startup invariant violated: database pool is nil")
 	}
 
-	pubsubClient, pubsubShutdown := bootstrapPubSubClient(ctx)
-	if pubsubShutdown != nil {
-		defer pubsubShutdown()
+	bus, busShutdown := bootstrapEventBus(ctx)
+	if busShutdown != nil {
+		defer busShutdown()
 	}
-
-	// Pub/Sub bus selection: Cloud client when wired, in-memory bus
-	// otherwise (dev / tests). Both satisfy obsoutbox.Bus.
-	var bus obsoutbox.Bus
-	if pubsubClient != nil {
-		bus = cgcpubsub.NewCloudPublisher(pubsubClient)
-		log.Printf("observability: Cloud Pub/Sub client wired (project=%s)", os.Getenv("CHORA_PUBSUB_PROJECT"))
-	} else {
-		if strictStartup {
-			log.Fatal("observability: strict startup invariant violated: Pub/Sub client is nil")
-		}
-		bus = cgcpubsub.NewInMemoryBus()
-		log.Printf("observability: in-memory Pub/Sub bus wired (CHORA_PUBSUB_PROJECT unset)")
-	}
+	log.Printf("observability: NATS JetStream event bus wired (url=%s)", os.Getenv("NATS_URL"))
 
 	// Federated closure-saga subscriber (CHO-1719 / Tier 3 D11): consumes
 	// chora.observability.pii.pseudonymise.requested.v1, applies the
@@ -188,63 +174,52 @@ func main() {
 	// Repo seam (CHO-2198, W0-F1 durability + W0-F5 error-honesty): pg on a
 	// healthy pool (durable ack/dedup — migration 0017,
 	// closure_pseudonymisation_state), in-memory ONLY when the pool is
-	// absent, mirroring the chora-payments else-branch shape. Before this
-	// fix the repo was UNGATED — gated on pubsubClient only, never on pool
-	// health — so the ack/dedup state was lost on every pod restart even
-	// with a healthy chora_observability pool (see
-	// docs/references/w0-f1-inmemory-inventory.md §6 item 4). Real
+	// absent, mirroring the chora-payments else-branch shape. Real
 	// per-table pg tokenisation (actually redacting token_usage_ledger /
 	// agent_decision_log / ... columns) remains separate, deeper M12+
 	// debt — this fix is durability of the ack/dedup SIGNAL only, not the
-	// redaction itself. Pull subscription is provisioned by infra (closure
-	// deploy runbook); override the name via env.
+	// redaction itself. The subscription is provisioned on the CHORA_EVENTS
+	// stream; override the durable name via env.
 	//
 	// closureRepo is hoisted to function scope so the ADR-236 D5 durability
 	// guard (below, before the HTTP handlers are built) can classify it
-	// alongside the other repos. It stays nil when pubsubClient is absent (or
-	// the PII map fails to load) — the guard reports nil as UNKNOWN, never a
-	// violation. Mirrors the chora-tenancy / chora-a2a-gateway D5 closureRepo
-	// hoist.
+	// alongside the other repos. It stays nil only when the PII map fails to
+	// load — the guard reports nil as UNKNOWN, never a violation. Mirrors the
+	// chora-tenancy / chora-a2a-gateway D5 closureRepo hoist.
 	var closureRepo events.ClosureRepository
-	if pubsubClient != nil {
-		piiPath := os.Getenv("CHORA_PII_CLOSURE_MAP_PATH")
-		if piiPath == "" {
-			piiPath = "config/PII_Closure_Map.yaml"
+	piiPath := os.Getenv("CHORA_PII_CLOSURE_MAP_PATH")
+	if piiPath == "" {
+		piiPath = "config/PII_Closure_Map.yaml"
+	}
+	closureAckPub := eventbus.NewClosureAckPublisher(bus, "", "chora-observability")
+	if pool != nil {
+		closureRepo = pg.NewClosureRepository(pg.NewPgxPoolQuerier(pool))
+		log.Printf("observability: pg ClosureRepository wired (table=closure_pseudonymisation_state)")
+	} else {
+		closureRepo = events.NewInMemoryClosureRepo()
+		log.Printf("observability: CHORA_DB_DSN unset — closure repo uses in-memory store (NOT durable across restart)")
+	}
+	if closureSub, err := events.BootstrapClosureSubscriber(piiPath, closureRepo, closureAckPub, nil); err != nil {
+		log.Printf("observability: closure subscriber DISABLED (PII map load: %v)", err)
+	} else {
+		closureSubName := os.Getenv("CHORA_CLOSURE_SUBSCRIPTION")
+		if closureSubName == "" {
+			closureSubName = "chora-observability.closure-pseudonymise"
 		}
-		closureAckPub := cgcpubsub.NewClosureAckPublisher(
-			cgcpubsub.NewCloudPublisher(pubsubClient),
-			os.Getenv("CHORA_PUBSUB_PROJECT"),
-			"chora-observability",
-		)
-		if pool != nil {
-			closureRepo = pg.NewClosureRepository(pg.NewPgxPoolQuerier(pool))
-			log.Printf("observability: pg ClosureRepository wired (table=closure_pseudonymisation_state)")
-		} else {
-			closureRepo = events.NewInMemoryClosureRepo()
-			log.Printf("observability: CHORA_DB_DSN unset — closure repo uses in-memory store (NOT durable across restart)")
-		}
-		if closureSub, err := events.BootstrapClosureSubscriber(piiPath, closureRepo, closureAckPub, nil); err != nil {
-			log.Printf("observability: closure subscriber DISABLED (PII map load: %v)", err)
-		} else {
-			closureSubName := os.Getenv("CHORA_CLOSURE_SUBSCRIPTION")
-			if closureSubName == "" {
-				closureSubName = "chora-observability.closure-pseudonymise"
+		go func() {
+			log.Printf("observability: closure subscriber binding %s -> %s", closureSubName, events.TopicPseudonymiseRequested)
+			if err := bus.Subscribe(ctx, consumerConfig(closureSubName, events.TopicPseudonymiseRequested), events.ClosurePullHandler(closureSub)); err != nil && !errors.Is(err, context.Canceled) {
+				log.Printf("observability: closure subscriber exited: %v", err)
 			}
-			go func() {
-				log.Printf("observability: closure subscriber binding %s -> %s", closureSubName, events.TopicPseudonymiseRequested)
-				if err := cgcpubsub.NewCloudSubscriber(pubsubClient).Subscribe(ctx, closureSubName, events.ClosurePullHandler(closureSub)); err != nil && !errors.Is(err, context.Canceled) {
-					log.Printf("observability: closure subscriber exited: %v", err)
-				}
-			}()
-		}
+		}()
 	}
 
 	// ----------------------------------------------------------------------
 	// D6.2 producer-side outbox wiring (M12.3 Wave 2, w2c).
 	//
-	// Publisher writes to outbox_events; Dispatcher drains to the Pub/Sub
-	// bus on a background goroutine. The PostgresStore reuses the same
-	// pgxpool.Pool that backs the LedgerRepository + Inbox (no duplicate
+	// Publisher writes to outbox_events; Dispatcher drains to the NATS
+	// JetStream event bus on a background goroutine. The PostgresStore reuses
+	// the same pgxpool.Pool that backs the LedgerRepository + Inbox (no duplicate
 	// connection pool, no separate DSN env). When the pool is unwired we
 	// fall back to the InMemoryStore so the service stays runnable in dev.
 	// ----------------------------------------------------------------------
@@ -257,7 +232,7 @@ func main() {
 	})
 
 	// ADR-167 Plane-4 fail-loud: the governance sink-failure AlertSink rides
-	// the SAME Pub/Sub bus the dispatcher drains to (reuse, don't reinvent —
+	// the SAME event bus the dispatcher drains to (reuse, don't reinvent —
 	// no second client). A dead-letter (malformed envelope OR publish-retries
 	// exhausted) emits chora.observability.sink_failure.recorded.v1 so the
 	// O+ / chora-governance surface sees the dropped event explicitly.
@@ -282,7 +257,7 @@ func main() {
 	}()
 
 	// ----------------------------------------------------------------------
-	// Inbox factory — used by Pub/Sub subscribers (analytics + closure +
+	// Inbox factory — used by the event-bus subscribers (analytics + closure +
 	// future). MemoryStore in dev; PostgresStore when the DB pool is wired
 	// (against chora_observability.idempotency_keys per migration 0005).
 	// ----------------------------------------------------------------------
@@ -291,7 +266,7 @@ func main() {
 	// ----------------------------------------------------------------------
 	// Gate #7 TokenUsageLedger consumer (WIRE1 — 2026-05-17).
 	//
-	// Binds the existing events.TokenUsageConsumer to a Pub/Sub StreamingPull
+	// Binds the existing events.TokenUsageConsumer to a JetStream consume-loop
 	// goroutine on the canonical subscription
 	// `chora-observability.observability-token_usage-recorded` (provisioned
 	// in chora-infra/terraform/environments/dev/main.tf §1538). The goroutine
@@ -300,7 +275,7 @@ func main() {
 	// Producer: chora-ai-kernel-orchestrator's TokenUsageLedgerOutboxWriter
 	// (qgen 2-agent crew emits one row per generate / critique trace hop;
 	// runner._emit_token_usage_ledger drives it; outbox dispatcher publishes
-	// to Pub/Sub).
+	// to the event bus).
 	// ----------------------------------------------------------------------
 	tokenUsageConsumer := events.NewTokenUsageConsumer(events.TokenUsageConsumerConfig{
 		Repo:  ledgerRepo,
@@ -322,13 +297,8 @@ func main() {
 		},
 	)
 	tokenUsageDone := startTokenUsageSubscriber(
-		ctx, pubsubClient, tokenUsageSubscription, tokenUsageHandler,
+		ctx, bus, tokenUsageSubscription, tokenUsageHandler,
 	)
-	if tokenUsageDone == nil {
-		log.Printf(
-			"observability: token_usage subscriber NOT wired (Pub/Sub client unwired — dev path)",
-		)
-	}
 
 	// ----------------------------------------------------------------------
 	// LedgerHook wiring — replaces the legacy inmem.OutboxRecorder with the
@@ -350,7 +320,7 @@ func main() {
 	// ----------------------------------------------------------------------
 	// AgentDecisionLog consumer (ADR-167 read-model hydration, 2026-05-29).
 	//
-	// Binds events.AgentDecisionConsumer to a Pub/Sub StreamingPull goroutine
+	// Binds events.AgentDecisionConsumer to a JetStream consume-loop goroutine
 	// on the canonical subscription
 	// `chora-observability.observability-agent_decision-logged` (v2 protobuf
 	// topic). Projects every routing/generate/critique/guardrail decision
@@ -415,13 +385,8 @@ func main() {
 		},
 	)
 	agentDecisionDone := startAgentDecisionSubscriber(
-		ctx, pubsubClient, agentDecisionSubscription, agentDecisionHandler,
+		ctx, bus, agentDecisionSubscription, agentDecisionHandler,
 	)
-	if agentDecisionDone == nil {
-		log.Printf(
-			"observability: agent_decision subscriber NOT wired (Pub/Sub client unwired — dev path)",
-		)
-	}
 
 	correlationRepo := inmem.NewCorrelationRepository()
 	budgetRepo := inmem.NewBudgetRepository()
@@ -520,7 +485,7 @@ func main() {
 		Inbox:    inbox,
 	})
 
-	// CHO-2257 — PULL/StreamingPull ingress. This lane previously declared an
+	// CHO-2257 — PULL ingress. This lane previously declared an
 	// HTTP PUSH handler while all 7 source subscriptions were PULL-shaped, so
 	// nothing ever called it and ~492 events sat undelivered. The service now
 	// subscribes to its OWN subscriptions, mirroring the token_usage /
@@ -535,8 +500,8 @@ func main() {
 	// malformed inbound event is dead-lettered locally + alerted + error-logged,
 	// and still Nacked to the broker DLQ.
 	familiarGrowthDone, fgErr := startFamiliarGrowthAuditSubscribers(
-		ctx, pubsubClient, familiarGrowthAuditSub, familiarGrowthAuditBindings,
-		func(inner cgcpubsub.Handler, consumerName, topic string) cgcpubsub.Handler {
+		ctx, bus, familiarGrowthAuditSub, familiarGrowthAuditBindings,
+		func(inner eventbus.Handler, consumerName, topic string) eventbus.Handler {
 			return withQuarantine(inner, quarantineDeps{
 				ConsumerName: consumerName,
 				Topic:        topic,
@@ -549,16 +514,16 @@ func main() {
 		log.Fatalf("observability: FATAL familiar_growth_audit ingress is invalid: %v", fgErr)
 	}
 	if len(familiarGrowthDone) == 0 {
-		log.Printf("observability: familiar_growth_audit subscribers NOT wired (Pub/Sub client unwired — dev path)")
+		log.Printf("observability: familiar_growth_audit subscribers NOT wired (event bus unwired — dev path)")
 	} else {
-		log.Printf("observability: familiar_growth_audit wired: %d StreamingPull consumers (PULL, not push)", len(familiarGrowthDone))
+		log.Printf("observability: familiar_growth_audit wired: %d JetStream consumers (PULL, not push)", len(familiarGrowthDone))
 	}
 
 	// ----------------------------------------------------------------------
 	// Grimoire Ritual run audit (O+ auditor projection, ADR-215 / ADR-219
 	// CHO-2016). chora-consumption publishes ritual_run_completed.v1 (JSON
 	// payload) when a learner-composed Ritual run reaches a terminal state;
-	// this PULL/StreamingPull consumer projects each run into ritual_run_audit
+	// this PULL consumer projects each run into ritual_run_audit
 	// so O+ auditors see the run + its per-step decision stamps. NOT a gateway
 	// push — the service subscribes to its OWN subscription (mirrors the
 	// token_usage / agent_decision consumers above).
@@ -599,11 +564,8 @@ func main() {
 		},
 	)
 	ritualAuditDone := startRitualRunAuditSubscriber(
-		ctx, pubsubClient, ritualAuditSubscription, ritualAuditHandler,
+		ctx, bus, ritualAuditSubscription, ritualAuditHandler,
 	)
-	if ritualAuditDone == nil {
-		log.Printf("observability: ritual_run_audit subscriber NOT wired (Pub/Sub client unwired — dev path)")
-	}
 
 	// ----------------------------------------------------------------------
 	// CHO-2148 — external web-egress entitlement projection + kill-switch.
@@ -654,11 +616,11 @@ func main() {
 			},
 		)
 		egressDone := startExternalEgressPolicySubscriber(
-			ctx, pubsubClient, egressSubscription, egressHandler,
+			ctx, bus, egressSubscription, egressHandler,
 		)
 		if egressDone == nil {
 			log.Printf("observability: external_egress projection subscriber NOT wired " +
-				"(Pub/Sub client unwired — dev path); tenant egress changes will NOT reach the gateway")
+				"(event bus unwired — dev path); tenant egress changes will NOT reach the gateway")
 		}
 		log.Printf("observability: external_egress projection + kill-switch repos wired (CHO-2148)")
 	} else {
@@ -826,7 +788,7 @@ func main() {
 		grpcSrv.Stop()
 	}
 
-	// Drain the token-usage Pub/Sub subscriber goroutine — broker already
+	// Drain the token-usage event-bus subscriber goroutine — the broker already
 	// saw ctx cancel; this just waits for the in-flight Handle() to settle
 	// so the ledger.Append + inbox.Process commit cleanly.
 	if tokenUsageDone != nil {
@@ -838,7 +800,7 @@ func main() {
 		}
 	}
 
-	// Drain the agent_decision Pub/Sub subscriber goroutine — same graceful
+	// Drain the agent_decision event-bus subscriber goroutine — same graceful
 	// shutdown contract as the token_usage subscriber above.
 	if agentDecisionDone != nil {
 		select {
@@ -849,7 +811,7 @@ func main() {
 		}
 	}
 
-	// Drain the ritual_run_audit Pub/Sub subscriber goroutine — same graceful
+	// Drain the ritual_run_audit event-bus subscriber goroutine — same graceful
 	// shutdown contract as the token_usage / agent_decision subscribers above.
 	if ritualAuditDone != nil {
 		select {
@@ -957,6 +919,28 @@ func envOrDefault(key, def string) string {
 		return v
 	}
 	return def
+}
+
+// consumerConfig builds the canonical eventbus.ConsumerConfig for one
+// subscription. Name is the subscription ID preserved verbatim from the
+// Pub/Sub era (it becomes the NATS durable consumer name); Subject is the
+// canonical event subject. MaxDeliver / AckWait / Backoff are the platform
+// retry policy; DLQSubject follows the chora.dlq.<topic> convention.
+func consumerConfig(name, subject string) eventbus.ConsumerConfig {
+	return eventbus.ConsumerConfig{
+		Name:       name,
+		Subject:    subject,
+		MaxDeliver: 5,
+		AckWait:    30 * time.Second,
+		Backoff:    []time.Duration{1 * time.Second, 5 * time.Second, 15 * time.Second, 30 * time.Second},
+		DLQSubject: dlqSubject(subject),
+	}
+}
+
+// dlqSubject maps an inbound subject to its dead-letter subject per the
+// platform convention: chora.dlq.<topic>.
+func dlqSubject(subject string) string {
+	return "chora.dlq." + strings.TrimPrefix(subject, "chora.")
 }
 
 // sqlDBAdapter bridges *sql.DB to obsoutbox.SQLDB (which uses

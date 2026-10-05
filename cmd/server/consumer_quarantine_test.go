@@ -15,7 +15,7 @@ import (
 	"sync"
 	"testing"
 
-	cgcpubsub "github.com/apollo-chora/chora-common/pubsub"
+	"github.com/apollo-chora/chora-common/eventbus"
 	obsoutbox "github.com/apollo-chora/chora-observability/internal/adapter/outbox"
 )
 
@@ -49,7 +49,7 @@ func TestWithQuarantine_MalformedEvent_DeadlettersAndAlertsAndReturnsError(t *te
 	alert := &recordingQuarantineAlert{}
 
 	rejectErr := errors.New("proto decode payload: cannot parse")
-	inner := func(_ context.Context, _ *cgcpubsub.Message) error { return rejectErr }
+	inner := func(_ context.Context, _ eventbus.Message) error { return rejectErr }
 
 	h := withQuarantine(inner, quarantineDeps{
 		ConsumerName: "token_usage",
@@ -58,8 +58,8 @@ func TestWithQuarantine_MalformedEvent_DeadlettersAndAlertsAndReturnsError(t *te
 		Alert:        alert,
 	})
 
-	msg := &cgcpubsub.Message{
-		Topic:   "chora.observability.token_usage.recorded.v1",
+	msg := eventbus.Message{
+		Subject: "chora.observability.token_usage.recorded.v1",
 		Payload: []byte{0xff, 0x00, 0xfe}, // garbage bytes
 	}
 	msg.Envelope.EventID = "evt-bad-1"
@@ -102,7 +102,7 @@ func TestWithQuarantine_WellFormedEvent_PassesThroughNoAlert(t *testing.T) {
 	store := obsoutbox.NewInMemoryStore()
 	alert := &recordingQuarantineAlert{}
 
-	inner := func(_ context.Context, _ *cgcpubsub.Message) error { return nil }
+	inner := func(_ context.Context, _ eventbus.Message) error { return nil }
 	h := withQuarantine(inner, quarantineDeps{
 		ConsumerName: "agent_decision",
 		Topic:        "chora.observability.agent_decision.logged.v1",
@@ -110,7 +110,7 @@ func TestWithQuarantine_WellFormedEvent_PassesThroughNoAlert(t *testing.T) {
 		Alert:        alert,
 	})
 
-	msg := &cgcpubsub.Message{Topic: "chora.observability.agent_decision.logged.v1"}
+	msg := eventbus.Message{Subject: "chora.observability.agent_decision.logged.v1"}
 	if err := h(context.Background(), msg); err != nil {
 		t.Fatalf("well-formed event must pass through: %v", err)
 	}
@@ -125,7 +125,7 @@ func TestWithQuarantine_WellFormedEvent_PassesThroughNoAlert(t *testing.T) {
 func TestWithQuarantine_NilStore_StillAlertsAndReturnsError(t *testing.T) {
 	alert := &recordingQuarantineAlert{}
 	rejectErr := errors.New("validation: tenant_id required")
-	inner := func(_ context.Context, _ *cgcpubsub.Message) error { return rejectErr }
+	inner := func(_ context.Context, _ eventbus.Message) error { return rejectErr }
 
 	h := withQuarantine(inner, quarantineDeps{
 		ConsumerName: "token_usage",
@@ -134,7 +134,7 @@ func TestWithQuarantine_NilStore_StillAlertsAndReturnsError(t *testing.T) {
 		Alert:        alert,
 	})
 
-	err := h(context.Background(), &cgcpubsub.Message{})
+	err := h(context.Background(), eventbus.Message{})
 	if err == nil {
 		t.Fatal("expected original error returned")
 	}
@@ -146,7 +146,7 @@ func TestWithQuarantine_NilStore_StillAlertsAndReturnsError(t *testing.T) {
 func TestWithQuarantine_MalformedEvent_SynthesisesRowIDWhenAttrsBlank(t *testing.T) {
 	store := obsoutbox.NewInMemoryStore()
 	alert := &recordingQuarantineAlert{}
-	inner := func(_ context.Context, _ *cgcpubsub.Message) error { return errors.New("boom") }
+	inner := func(_ context.Context, _ eventbus.Message) error { return errors.New("boom") }
 	h := withQuarantine(inner, quarantineDeps{
 		ConsumerName: "token_usage",
 		Topic:        "chora.observability.token_usage.recorded.v1",
@@ -155,7 +155,7 @@ func TestWithQuarantine_MalformedEvent_SynthesisesRowIDWhenAttrsBlank(t *testing
 	})
 	// Message with blank routing attrs → row id must be synthesised + tenant
 	// falls back to "platform".
-	if err := h(context.Background(), &cgcpubsub.Message{}); err == nil {
+	if err := h(context.Background(), eventbus.Message{}); err == nil {
 		t.Fatal("expected error")
 	}
 	dls := store.DeadLetters()

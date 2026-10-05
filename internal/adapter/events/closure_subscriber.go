@@ -6,7 +6,7 @@
 // (or pii.pseudonymise.failed.v1 on compensation path).
 //
 // Hexagonal:
-//   - INBOUND ADAPTER from Pub/Sub
+//   - INBOUND ADAPTER from the NATS JetStream event bus
 //   - depends on a small ClosurePublisher port (not the full events.Publisher)
 //   - depends on a small ClosureRepository port (this service's DB only —
 //     cross-DB queries forbidden per ddd-enforcement.md HARD RULE)
@@ -46,7 +46,7 @@ const (
 )
 
 // InboxTTL is the dedupe-key retention window for closure_subscriber's
-// inbox. 24h covers Pub/Sub max redelivery window (7d default) reduced
+// inbox. 24h covers the event bus max redelivery window reduced
 // for the closure saga's typical end-to-end latency.
 const InboxTTL = 24 * time.Hour
 
@@ -356,9 +356,9 @@ func (r *InMemoryClosureRepo) SetFailNext(b bool) {
 // supplied repo + publisher. Returns an error if the map fails to load or
 // validate.
 //
-// Caller is responsible for binding the subscriber to its Pub/Sub source
-// (M12+: cgcpubsub.CloudSubscriber). In dev, the in-memory bus calls
-// Handle directly.
+// Caller is responsible for binding the subscriber to the event bus
+// (cmd/server wires events.ClosurePullHandler onto the bus' Subscribe).
+// In dev, the in-memory bus calls Handle directly.
 func BootstrapClosureSubscriber(piiMapPath string, repo ClosureRepository, pub ClosurePublisher, inbox idempotent.Store) (*ClosureSubscriber, error) {
 	pii, err := loadPIIMap(piiMapPath)
 	if err != nil {

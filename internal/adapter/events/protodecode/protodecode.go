@@ -1,4 +1,4 @@
-// Package protodecode decodes inbound Pub/Sub message bytes into a
+// Package protodecode decodes inbound event-bus message bytes into a
 // snake_case map[string]any compatible with the legacy json.Unmarshal flow.
 //
 // Why this package exists
@@ -115,25 +115,26 @@ var binaryDecoders = map[string]struct {
 	},
 }
 
-// DecodePayloadMap decodes inbound Pub/Sub message bytes into a snake_case
+// DecodePayloadMap decodes inbound event-bus message bytes into a snake_case
 // map[string]any. Binary protobuf preferred via per-topic decoders; falls
 // back to json.Unmarshal for unregistered or transitioning topics.
 //
-// Use DecodePayloadMapWithAttrs when the caller has Pub/Sub msg.Attributes
-// available — the publisher places envelope fields (event_id / tenant_id /
-// gcid / traceparent) there, not in the payload body, so the JSON fallback
-// path returns empty envelope fields without them.
+// Use DecodePayloadMapWithAttrs when the caller has the publisher-supplied
+// envelope attributes available — the publisher places envelope fields
+// (event_id / tenant_id / gcid / traceparent) in the message headers, not in
+// the payload body, so the JSON fallback path returns empty envelope fields
+// without them.
 func DecodePayloadMap(topic string, payload []byte) (map[string]any, error) {
 	return DecodePayloadMapWithAttrs(topic, payload, nil)
 }
 
-// DecodePayloadMapWithAttrs decodes inbound Pub/Sub message bytes + the
-// publisher-supplied msg.Attributes into a snake_case map[string]any.
+// DecodePayloadMapWithAttrs decodes inbound event-bus message bytes + the
+// publisher-supplied envelope attributes into a snake_case map[string]any.
 //
 // Field precedence (high → low):
 //  1. Binary proto Envelope (when payload is binary-decodable for this topic)
-//  2. Pub/Sub msg.Attributes (publisher's canonical envelope projection per
-//     chora-common/pubsub.envelopeAttributes)
+//  2. Envelope attributes (publisher's canonical envelope projection per
+//     the eventbus NATS header contract)
 //  3. JSON payload body
 //
 // Binary always wins because the producer flipped to binary AS the canonical
@@ -172,8 +173,8 @@ func DecodePayloadMapWithAttrs(topic string, payload []byte, attrs map[string]st
 	return out, nil
 }
 
-// mergeAttrsEnvelope projects Pub/Sub msg.Attributes onto the decoded map's
-// canonical envelope keys. Empty / missing attrs are no-ops.
+// mergeAttrsEnvelope projects the publisher-supplied envelope attributes onto
+// the decoded map's canonical envelope keys. Empty / missing attrs are no-ops.
 //
 // Attribute key mapping (publisher → consumer field name):
 //   - attrs["event_id"]      → out["event_id"]

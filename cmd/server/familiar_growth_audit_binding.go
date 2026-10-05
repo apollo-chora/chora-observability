@@ -1,4 +1,4 @@
-// familiar_growth_audit_binding.go — Pub/Sub StreamingPull bindings for the 7
+// familiar_growth_audit_binding.go — JetStream bindings for the 7
 // ADR-149 Familiar Growth audit source topics (CHO-2257), plus the STRUCTURAL
 // GUARD that keeps an ingress and its subscription from drifting apart again.
 //
@@ -22,8 +22,8 @@
 //
 // The decode-binding (message → typed event → subscriber.Handle) lives in
 // internal/adapter/events (FamiliarGrowthAuditPullHandler) so it is unit-testable
-// without the Cloud Pub/Sub client. This file owns only the canonical binding
-// table + the StreamingPull goroutines, mirroring startRitualRunAuditSubscriber.
+// without a broker connection. This file owns only the canonical binding
+// table + the consume-loop goroutines, mirroring startRitualRunAuditSubscriber.
 package main
 
 import (
@@ -33,7 +33,7 @@ import (
 	"log"
 	"strings"
 
-	cgcpubsub "github.com/apollo-chora/chora-common/pubsub"
+	"github.com/apollo-chora/chora-common/eventbus"
 	"github.com/apollo-chora/chora-observability/internal/adapter/events"
 	"github.com/apollo-chora/chora-observability/internal/adapter/subscribers"
 	fg "github.com/apollo-chora/chora-observability/internal/domain/familiargrowth"
@@ -63,12 +63,13 @@ type familiarGrowthAuditBinding struct {
 
 // familiarGrowthAuditBindings is the canonical ADR-149 ingress declaration.
 //
-// Subscription short-names are pinned against deployed reality (verified
+// Subscription names are pinned against deployed reality (verified
 // 2026-07-17 in chora-489812: all 7 exist, all have an empty
 // pushConfig.pushEndpoint, all carry a dead_letter_policy with
 // maxDeliveryAttempts=5 onto chora.dlq.<topic>, and each DLQ topic has a .pull
-// drain subscription). The full resource path resolves against
-// CHORA_PUBSUB_PROJECT, as with the token_usage / ritual_audit consumers.
+// drain subscription). The names are preserved verbatim from the Pub/Sub era
+// as the NATS durable consumer names, as with the token_usage / ritual_audit
+// consumers.
 var familiarGrowthAuditBindings = []familiarGrowthAuditBinding{
 	{Topic: fg.TopicExpAwarded, Subscription: "chora-observability.consumption-familiar-exp_awarded", Shape: ingressPull},
 	{Topic: fg.TopicStageUp, Subscription: "chora-observability.consumption-familiar-stage_up", Shape: ingressPull},
@@ -153,20 +154,18 @@ func validateFamiliarGrowthAuditBindings(subscribedTopics []string, bindings []f
 
 // growthHandlerWrapper decorates a per-topic handler (the ADR-167 Plane-4
 // quarantine wrap in main.go). nil ⇒ no decoration.
-type growthHandlerWrapper func(inner cgcpubsub.Handler, consumerName, topic string) cgcpubsub.Handler
+type growthHandlerWrapper func(inner eventbus.Handler, consumerName, topic string) eventbus.Handler
 
 // startFamiliarGrowthAuditSubscribers validates the binding table, then starts
-// one CloudSubscriber goroutine per binding. Each goroutine exits cleanly when
-// ctx is canceled (graceful shutdown).
+// one JetStream consume-loop goroutine per binding. Each goroutine exits
+// cleanly when ctx is canceled (graceful shutdown).
 //
 // The binding table is validated BEFORE anything starts, so an invalid
 // declaration never yields a partially-wired lane — the caller fails loudly
-// instead. Returns (nil, nil) when the Pub/Sub client is unwired
-// (CHORA_PUBSUB_PROJECT unset — the dev/local path falls back to the in-memory
-// bus, which has no streaming-pull surface); the caller logs that.
+// instead. Returns (nil, nil) when the event bus is unwired (tests).
 func startFamiliarGrowthAuditSubscribers(
 	ctx context.Context,
-	client cgcpubsub.CloudPubSubClient,
+	bus eventbus.Subscriber,
 	sub *subscribers.FamiliarGrowthAuditSubscriber,
 	bindings []familiarGrowthAuditBinding,
 	wrap growthHandlerWrapper,
@@ -177,13 +176,13 @@ func startFamiliarGrowthAuditSubscribers(
 	if err := validateFamiliarGrowthAuditBindings(sub.SubscribedTopics(), bindings); err != nil {
 		return nil, err
 	}
-	if client == nil {
+	if bus == nil {
 		return nil, nil
 	}
 
 	// Build every handler BEFORE starting any goroutine: a construction error
 	// must fail the boot, not surface as one quietly-missing consumer.
-	handlers := make([]cgcpubsub.Handler, 0, len(bindings))
+	handlers := make([]eventbus.Handler, 0, len(bindings))
 	for _, b := range bindings {
 		h, err := events.FamiliarGrowthAuditPullHandler(sub, b.Topic)
 		if err != nil {
@@ -195,7 +194,6 @@ func startFamiliarGrowthAuditSubscribers(
 		handlers = append(handlers, h)
 	}
 
-	subscriber := cgcpubsub.NewCloudSubscriber(client)
 	done := make([]chan struct{}, 0, len(bindings))
 	for i, b := range bindings {
 		b, h := b, handlers[i]
@@ -206,7 +204,8 @@ func startFamiliarGrowthAuditSubscribers(
 				"observability: familiar_growth_audit subscriber started (subscription=%s, topic=%s, shape=%s)",
 				b.Subscription, b.Topic, b.Shape,
 			)
-			if err := subscriber.Subscribe(ctx, b.Subscription, h); err != nil &&
+			err := bus.Subscribe(ctx, consumerConfig(b.Subscription, b.Topic), h)
+			if err != nil &&
 				!errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
 				log.Printf(
 					"observability: familiar_growth_audit subscriber exited (subscription=%s, topic=%s): %v",

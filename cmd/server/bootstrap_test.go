@@ -19,17 +19,6 @@ func TestBootstrapDBPool_NoEnvReturnsNil(t *testing.T) {
 	}
 }
 
-func TestBootstrapPubSubClient_NoEnvReturnsNil(t *testing.T) {
-	t.Setenv("CHORA_PUBSUB_PROJECT", "")
-	cli, shutdown := bootstrapPubSubClient(context.Background())
-	if cli != nil {
-		t.Fatalf("expected nil client when CHORA_PUBSUB_PROJECT unset; got %v", cli)
-	}
-	if shutdown != nil {
-		t.Fatalf("expected nil shutdown when client unwired")
-	}
-}
-
 func TestBootstrapOutboxStore_NilPoolReturnsInMemory(t *testing.T) {
 	store := bootstrapOutboxStore(nil)
 	if store == nil {

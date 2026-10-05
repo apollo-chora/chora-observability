@@ -1,4 +1,4 @@
-// Package reconcilepublish is the real Pub/Sub publisher adapter for the
+// Package reconcilepublish is the real event-bus publisher adapter for the
 // daily reconciliation harness's anomaly + degraded events.
 //
 // Before this adapter, cmd/reconcile used a logging-only stub EventSink (the
@@ -9,8 +9,8 @@
 //	chora.observability.payment_reconciliation.degraded.v1 (reconcile.DegradedEvent)
 //
 // It REUSES the same publisher abstraction the main server's outbox dispatcher
-// uses — `chora-common/pubsub`'s OutboxCompatible (CloudPublisher in prod,
-// InMemoryBus in tests) — so there is one Pub/Sub publish path across the
+// uses — the eventbus Publisher contract (the NATS JetStream bus in prod,
+// an in-memory bus in tests) — so there is one publish path across the
 // service, not two. Per `feedback_no_inline_config` source_project /
 // source_service come from the Config struct (env-sourced at the cmd/reconcile
 // composition root); per `feedback_no_stubs_real_wiring` this is real wiring,
@@ -29,18 +29,18 @@ import (
 	"github.com/apollo-chora/chora-observability/internal/domain/reconcile"
 )
 
-// Publisher is the minimal Pub/Sub publish contract this adapter needs. It is
-// satisfied by chora-common/pubsub.CloudPublisher + .InMemoryBus (both
-// implement OutboxCompatible) — the SAME abstraction the main server's outbox
-// dispatcher's Bus port uses. Declared locally to avoid importing the GCP
-// client chain into the reconcile binary's unit tests.
+// Publisher is the minimal publish contract this adapter needs. It is
+// satisfied by eventbus.Publisher (the NATS JetStream bus) — the SAME
+// abstraction the main server's outbox dispatcher's Bus port uses. Declared
+// locally to avoid importing the broker client chain into the reconcile
+// binary's unit tests.
 type Publisher interface {
 	Publish(ctx context.Context, topic string, env cgcenvelope.Envelope, payload []byte) error
 }
 
-// Config wires a PubSubEventSink.
+// Config wires an EventSink.
 type Config struct {
-	// Publisher is the Pub/Sub publisher. Required.
+	// Publisher is the event-bus publisher. Required.
 	Publisher Publisher
 
 	// SourceProject is the GCP project the reconcile job runs in. Defaults to
@@ -55,19 +55,19 @@ type Config struct {
 	Now func() time.Time
 }
 
-// PubSubEventSink publishes reconciliation anomaly + degraded events via the
+// EventSink publishes reconciliation anomaly + degraded events via the
 // injected Publisher. It satisfies BOTH reconcile.EventSink (anomaly) and
 // reconcile.DegradedSink (degraded-pipeline) so the Runner emits both
 // surfaces through one real publisher.
-type PubSubEventSink struct {
+type EventSink struct {
 	cfg Config
 }
 
-// NewPubSubEventSink constructs the sink. Panics on a nil Publisher (fail-loud
+// NewEventSink constructs the sink. Panics on a nil Publisher (fail-loud
 // at composition time, not on the first daily anomaly).
-func NewPubSubEventSink(cfg Config) *PubSubEventSink {
+func NewEventSink(cfg Config) *EventSink {
 	if cfg.Publisher == nil {
-		panic("reconcilepublish: NewPubSubEventSink: Publisher required")
+		panic("reconcilepublish: NewEventSink: Publisher required")
 	}
 	if cfg.Now == nil {
 		cfg.Now = func() time.Time { return time.Now().UTC() }
@@ -78,12 +78,12 @@ func NewPubSubEventSink(cfg Config) *PubSubEventSink {
 	if cfg.SourceService == "" {
 		cfg.SourceService = "chora-observability"
 	}
-	return &PubSubEventSink{cfg: cfg}
+	return &EventSink{cfg: cfg}
 }
 
 // Emit satisfies reconcile.EventSink — publishes the payment-reconciliation
 // anomaly event on chora.governance.payment_reconciliation.anomaly.v1.
-func (s *PubSubEventSink) Emit(ctx context.Context, ev reconcile.AnomalyEvent) error {
+func (s *EventSink) Emit(ctx context.Context, ev reconcile.AnomalyEvent) error {
 	payload, err := json.Marshal(ev)
 	if err != nil {
 		return fmt.Errorf("reconcilepublish: marshal anomaly: %w", err)
@@ -101,7 +101,7 @@ func (s *PubSubEventSink) Emit(ctx context.Context, ev reconcile.AnomalyEvent) e
 
 // EmitDegraded satisfies reconcile.DegradedSink — publishes the degraded-
 // pipeline event on chora.observability.payment_reconciliation.degraded.v1.
-func (s *PubSubEventSink) EmitDegraded(ctx context.Context, ev reconcile.DegradedEvent) error {
+func (s *EventSink) EmitDegraded(ctx context.Context, ev reconcile.DegradedEvent) error {
 	payload, err := json.Marshal(ev)
 	if err != nil {
 		return fmt.Errorf("reconcilepublish: marshal degraded: %w", err)
@@ -118,7 +118,7 @@ func (s *PubSubEventSink) EmitDegraded(ctx context.Context, ev reconcile.Degrade
 // buildEnvelope builds the mandatory-field envelope for a reconcile event.
 // The reconcile harness is a platform job (no learner GCID + the "platform"
 // tenant sentinel). occurredAt is the domain event's clock (falls back to now).
-func (s *PubSubEventSink) buildEnvelope(ctx context.Context, idemKey, imdaDimension, lifecycleStage string, occurredAt time.Time) cgcenvelope.Envelope {
+func (s *EventSink) buildEnvelope(ctx context.Context, idemKey, imdaDimension, lifecycleStage string, occurredAt time.Time) cgcenvelope.Envelope {
 	now := s.cfg.Now()
 	if occurredAt.IsZero() {
 		occurredAt = now
@@ -149,6 +149,6 @@ func (s *PubSubEventSink) buildEnvelope(ctx context.Context, idemKey, imdaDimens
 
 // Compile-time checks: the sink satisfies both reconcile ports.
 var (
-	_ reconcile.EventSink    = (*PubSubEventSink)(nil)
-	_ reconcile.DegradedSink = (*PubSubEventSink)(nil)
+	_ reconcile.EventSink    = (*EventSink)(nil)
+	_ reconcile.DegradedSink = (*EventSink)(nil)
 )

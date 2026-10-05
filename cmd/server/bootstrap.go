@@ -2,8 +2,8 @@
 //
 // Per `feedback_resilience_priority` + `secrets-and-env`: every production
 // dependency is sourced from env vars (Terraform / Workload Identity
-// Federation in production). Local dev sees nil pools / nil pubsub clients
-// so the server keeps the in-memory adapter fallback working out of the box.
+// Federation in production). Local dev sees nil pools so the server keeps
+// the in-memory adapter fallback working out of the box.
 //
 // Environment contract:
 //
@@ -16,7 +16,9 @@
 //	CHORA_DB_PROJECT        — GCP project for Secret Manager.
 //	CHORA_DB_REWRITE_FROM_PORT — bypass PgBouncer until the sidecar lands.
 //	CHORA_DB_REWRITE_TO_PORT
-//	CHORA_PUBSUB_PROJECT    — GCP project hosting Pub/Sub topics.
+//	NATS_URL                — NATS server URL for the JetStream event bus
+//	                          (mandatory; the server refuses to start
+//	                          without it).
 //	CHORA_OUTBOX_WORKER_ID  — worker ID stamped onto deadletter rows;
 //	                          defaults to HOSTNAME.
 //	CHORA_SOURCE_PROJECT    — source_project envelope stamp (default
@@ -28,12 +30,13 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	cgcdb "github.com/apollo-chora/chora-common/db"
-	cgcpubsub "github.com/apollo-chora/chora-common/pubsub"
+	"github.com/apollo-chora/chora-common/eventbus"
 	cgcsecrets "github.com/apollo-chora/chora-common/secrets"
 )
 
@@ -104,29 +107,22 @@ func bootstrapDBPool(ctx context.Context) (*pgxpool.Pool, func()) {
 	return pool, shutdown
 }
 
-func bootstrapPubSubClient(ctx context.Context) (cgcpubsub.CloudPubSubClient, func()) {
-	project := os.Getenv("CHORA_PUBSUB_PROJECT")
-	if project == "" {
-		if envEnabled("CHORA_STRICT_STARTUP", false) {
-			log.Fatal("observability: strict startup: CHORA_PUBSUB_PROJECT is required; refusing in-memory Pub/Sub fallback")
-		}
-		return nil, nil
+// bootstrapEventBus wires the NATS JetStream event bus. NATS is mandatory for
+// the server executable — there is no in-memory fallback, because the outbox
+// dispatcher and every subscriber require a real broker to drain and consume.
+func bootstrapEventBus(ctx context.Context) (eventbus.Bus, func()) {
+	url := strings.TrimSpace(os.Getenv("NATS_URL"))
+	if url == "" {
+		log.Fatal("observability: NATS_URL is required; refusing to start without an event bus")
 	}
-	if emulator := os.Getenv("PUBSUB_EMULATOR_HOST"); emulator != "" {
-		log.Printf("observability: Pub/Sub emulator configured (host=%s project=%s)", emulator, project)
-	}
-	cli, err := cgcpubsub.NewGCPClient(ctx, project)
+	bus, err := eventbus.NewJetStream(eventbus.JetStreamConfig{URL: url})
 	if err != nil {
-		if envEnabled("CHORA_STRICT_STARTUP", false) {
-			log.Fatalf("observability: strict startup: Pub/Sub client init failed; refusing in-memory fallback: %v", err)
-		}
-		log.Printf("observability: pubsub client init failed: %v — falling back to in-memory recorder", err)
-		return nil, nil
+		log.Fatalf("observability: JetStream init failed: %v", err)
 	}
 	shutdown := func() {
-		_ = cli.Close()
+		_ = bus.Close()
 	}
-	return cli, shutdown
+	return bus, shutdown
 }
 
 // observabilityDBRuntimeParams returns the per-connection Postgres GUCs that keep a

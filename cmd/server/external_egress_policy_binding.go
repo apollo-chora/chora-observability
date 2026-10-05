@@ -1,4 +1,4 @@
-// external_egress_policy_binding.go — Pub/Sub StreamingPull binding for the
+// external_egress_policy_binding.go — JetStream binding for the
 // chora.tenancy.external_egress_policy.updated.v1 projection (CHO-2148).
 //
 // chora-tenancy owns the tenant external web-egress entitlement. The
@@ -16,20 +16,21 @@
 //
 // The topic is Schema-Registry-bound with encoding=BINARY, so the payload is
 // binary protobuf. proto.Unmarshal failure returns an error (FAIL LOUD) →
-// CloudSubscriber NACKs → broker retries → DLQ. NO JSON fallback, NO silent
-// drop — a dropped egress event leaves the gateway serving a stale entitlement
-// with nothing to alert on.
+// the JetStream consume loop NAKs → broker retries → DLQ. NO JSON fallback, NO
+// silent drop — a dropped egress event leaves the gateway serving a stale
+// entitlement with nothing to alert on.
 package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"time"
 
 	"google.golang.org/protobuf/proto"
 
-	cgcpubsub "github.com/apollo-chora/chora-common/pubsub"
+	"github.com/apollo-chora/chora-common/eventbus"
 	tenancyv1 "github.com/apollo-chora/chora-contracts/gen/go/chora/tenancy/v1"
 	"github.com/apollo-chora/chora-observability/internal/adapter/events"
 	"github.com/apollo-chora/chora-observability/internal/domain/externalegress"
@@ -42,20 +43,17 @@ const DefaultExternalEgressSubscription = "chora-observability.tenancy-external_
 // ExternalEgressPolicyUpdated payload and hands it to the projection consumer.
 //
 // Envelope precedence matches the token_usage binding: the proto EventEnvelope
-// (field 1) is AUTHORITATIVE; the Pub/Sub routing attributes are read only as a
-// fallback when the proto envelope is absent or blank.
+// (field 1) is AUTHORITATIVE; the routing envelope (eventbus.Message.Envelope,
+// reconstructed from the publisher's NATS headers) is read only as a fallback
+// when the proto envelope is absent or blank.
 //
-// Extracted as a free function so a unit test can drive it without a Pub/Sub
-// client or a goroutine.
-func buildExternalEgressPolicyHandler(cons *events.ExternalEgressPolicyConsumer) cgcpubsub.Handler {
+// Extracted as a free function so a unit test can drive it without a broker
+// connection or a goroutine.
+func buildExternalEgressPolicyHandler(cons *events.ExternalEgressPolicyConsumer) eventbus.Handler {
 	if cons == nil {
 		panic("external_egress_policy_binding: nil ExternalEgressPolicyConsumer")
 	}
-	return func(ctx context.Context, msg *cgcpubsub.Message) error {
-		if msg == nil {
-			return fmt.Errorf("external_egress_policy_binding: nil message")
-		}
-
+	return func(ctx context.Context, msg eventbus.Message) error {
 		var rec tenancyv1.ExternalEgressPolicyUpdated
 		if err := proto.Unmarshal(msg.Payload, &rec); err != nil {
 			return fmt.Errorf("external_egress_policy_binding: proto decode payload: %w", err)
@@ -94,21 +92,20 @@ func buildExternalEgressPolicyHandler(cons *events.ExternalEgressPolicyConsumer)
 	}
 }
 
-// startExternalEgressPolicySubscriber starts the StreamingPull goroutine.
-// Returns nil when the Pub/Sub client is unwired (dev / local tests).
+// startExternalEgressPolicySubscriber starts the JetStream consume-loop
+// goroutine. Returns nil when the event bus or the handler is unwired (tests).
 func startExternalEgressPolicySubscriber(
 	ctx context.Context,
-	client cgcpubsub.CloudPubSubClient,
+	bus eventbus.Subscriber,
 	subscription string,
-	handler cgcpubsub.Handler,
+	handler eventbus.Handler,
 ) chan struct{} {
-	if client == nil || handler == nil {
+	if bus == nil || handler == nil {
 		return nil
 	}
 	if subscription == "" {
 		subscription = DefaultExternalEgressSubscription
 	}
-	sub := cgcpubsub.NewCloudSubscriber(client)
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
@@ -116,8 +113,8 @@ func startExternalEgressPolicySubscriber(
 			"observability: external_egress projection subscriber started (subscription=%s, topic=%s)",
 			subscription, events.TopicExternalEgressPolicyUpdated,
 		)
-		if err := sub.Subscribe(ctx, subscription, handler); err != nil &&
-			err != context.Canceled && err != context.DeadlineExceeded {
+		err := bus.Subscribe(ctx, consumerConfig(subscription, events.TopicExternalEgressPolicyUpdated), handler)
+		if err != nil && !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
 			log.Printf("observability: external_egress projection subscriber exited: %v", err)
 		}
 	}()

@@ -1,11 +1,11 @@
 // token_usage_binding_test.go — RED→GREEN unit tests for the
-// chora.observability.token_usage.recorded.v1 StreamingPull binding
+// chora.observability.token_usage.recorded.v1 JetStream binding
 // (Gate #7 WIRE1 2026-05-17 + ADR-167 Phase 2 JSON→Protobuf migration).
 //
-// Wire shape (ADR-167): the Pub/Sub message `data` is a BINARY-protobuf
+// Wire shape (ADR-167): the event bus message payload is a BINARY-protobuf
 // `chora.observability.v1.TokenUsageRecorded` whose EventEnvelope at field
-// 1 is AUTHORITATIVE. The cgcpubsub.Message.Envelope (routing attrs
-// reconstructed from Pub/Sub message attributes) is read only as a fallback
+// 1 is AUTHORITATIVE. The eventbus.Message.Envelope (routing envelope
+// reconstructed from the publisher's NATS headers) is read only as a fallback
 // when the proto envelope is absent / blank.
 //
 // Verifies:
@@ -13,21 +13,20 @@
 //   - buildTokenUsageHandler proto.Unmarshal the payload into
 //     TokenUsageRecorded + maps it into TokenUsageRecordedEvent + calls
 //     TokenUsageConsumer.Handle.
-//   - Proto envelope (field 1) is canonical; routing attrs are the fallback.
+//   - Proto envelope (field 1) is canonical; the routing envelope is the fallback.
 //   - Multi-tenant isolation — different envelope.TenantID values produce
 //     distinct ledger rows (D6 P3).
 //   - Trace context propagation — Traceparent + Tracestate land on the
 //     ledger row (D6 P4).
 //   - Idempotency on event_id (D6 P2) — replay is a no-op at the consumer.
-//   - FAIL LOUD — malformed proto bytes → error → broker NACK → DLQ. NO
+//   - FAIL LOUD — malformed proto bytes → error → broker NAK → DLQ. NO
 //     JSON fallback (ADR-167 HARD REQUIREMENT #1).
 //   - startTokenUsageSubscriber registers the goroutine (returns a non-nil
-//     done channel when wired) + skips wiring when client/cons is nil.
+//     done channel when wired) + skips wiring when bus/handler is nil.
 package main
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 
@@ -35,8 +34,8 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	commonenvelope "github.com/apollo-chora/chora-common/envelope"
+	"github.com/apollo-chora/chora-common/eventbus"
 	"github.com/apollo-chora/chora-common/idempotent"
-	cgcpubsub "github.com/apollo-chora/chora-common/pubsub"
 	commonv1 "github.com/apollo-chora/chora-contracts/gen/go/chora/common/v1"
 	observabilityv1 "github.com/apollo-chora/chora-contracts/gen/go/chora/observability/v1"
 	"github.com/apollo-chora/chora-observability/internal/adapter/events"
@@ -87,18 +86,18 @@ func goodTokenUsageProto() *observabilityv1.TokenUsageRecorded {
 	}
 }
 
-// protoMessage wraps the proto into a cgcpubsub.Message. The cgcpubsub
+// protoMessage wraps the proto into an eventbus.Message. The eventbus
 // envelope mirrors the proto envelope (the publisher stamps both); tests
 // that exercise precedence/fallback override one side.
-func protoMessage(t *testing.T, m *observabilityv1.TokenUsageRecorded) *cgcpubsub.Message {
+func protoMessage(t *testing.T, m *observabilityv1.TokenUsageRecorded) eventbus.Message {
 	t.Helper()
 	data, err := proto.Marshal(m)
 	if err != nil {
 		t.Fatalf("marshal proto: %v", err)
 	}
 	env := m.GetEnvelope()
-	return &cgcpubsub.Message{
-		Topic: events.TopicTokenUsageRecorded,
+	return eventbus.Message{
+		Subject: events.TopicTokenUsageRecorded,
 		Envelope: commonenvelope.Envelope{
 			EventID:        env.GetEventId(),
 			IdempotencyKey: env.GetIdempotencyKey(),
@@ -194,7 +193,7 @@ func TestBuildTokenUsageHandler_ProtoEnvelopeIsCanonical(t *testing.T) {
 
 func TestBuildTokenUsageHandler_FallsBackToAttrsWhenProtoEnvelopeAbsent(t *testing.T) {
 	// Proto with NO envelope — handler falls back to the routing attrs
-	// (cgcpubsub.Message.Envelope) for the envelope-mandatory fields.
+	// (eventbus.Message.Envelope) for the envelope-mandatory fields.
 	cons, repo := newTokenUsageFixture(t)
 	h := buildTokenUsageHandler(cons)
 
@@ -206,8 +205,8 @@ func TestBuildTokenUsageHandler_FallsBackToAttrsWhenProtoEnvelopeAbsent(t *testi
 		InvocationId: "assist-fallback",
 	}
 	data, _ := proto.Marshal(m)
-	msg := &cgcpubsub.Message{
-		Topic: events.TopicTokenUsageRecorded,
+	msg := eventbus.Message{
+		Subject: events.TopicTokenUsageRecorded,
 		Envelope: commonenvelope.Envelope{
 			EventID:    "evt-fallback",
 			TenantID:   "tenant-zeta",
@@ -277,22 +276,14 @@ func TestBuildTokenUsageHandler_IdempotentOnEventID(t *testing.T) {
 	}
 }
 
-func TestBuildTokenUsageHandler_NilMessageError(t *testing.T) {
-	cons, _ := newTokenUsageFixture(t)
-	h := buildTokenUsageHandler(cons)
-	if err := h(context.Background(), nil); err == nil {
-		t.Fatalf("nil message must error so CloudSubscriber Nacks")
-	}
-}
-
 // TestBuildTokenUsageHandler_MalformedProtoError asserts the FAIL-LOUD DLQ
-// path (ADR-167 HARD REQUIREMENT #1): non-protobuf bytes → error → NACK →
+// path (ADR-167 HARD REQUIREMENT #1): non-protobuf bytes → error → NAK →
 // DLQ. NO JSON fallback.
 func TestBuildTokenUsageHandler_MalformedProtoError(t *testing.T) {
 	cons, _ := newTokenUsageFixture(t)
 	h := buildTokenUsageHandler(cons)
-	msg := &cgcpubsub.Message{
-		Topic:    events.TopicTokenUsageRecorded,
+	msg := eventbus.Message{
+		Subject:  events.TopicTokenUsageRecorded,
 		Envelope: commonenvelope.Envelope{EventID: "x", TenantID: "t", OccurredAt: time.Now()},
 		Payload:  []byte{0xFF, 0xFF, 0xFF, 0xFF, 0x0F},
 	}
@@ -314,30 +305,26 @@ func TestBuildTokenUsageHandler_PanicsOnNilConsumer(t *testing.T) {
 // startTokenUsageSubscriber
 // -----------------------------------------------------------------------------
 
-// stubCloudClient is a no-op CloudPubSubClient that blocks on Subscribe
+// stubSubscriber is a no-op eventbus.Subscriber that blocks on Subscribe
 // until ctx is canceled. Lets the test verify the goroutine is registered
 // without spinning up a real broker.
-type stubCloudClient struct{}
+type stubSubscriber struct{}
 
-func (stubCloudClient) PublishMessage(_ context.Context, _ string, _ []byte, _ map[string]string) (string, error) {
-	return "", errors.New("not implemented")
-}
-
-func (stubCloudClient) SubscriptionReceive(ctx context.Context, _ string, _ func(context.Context, cgcpubsub.CloudMessage) error) error {
+func (stubSubscriber) Subscribe(ctx context.Context, _ eventbus.ConsumerConfig, _ eventbus.Handler) error {
 	<-ctx.Done()
 	return ctx.Err()
 }
 
-func TestStartTokenUsageSubscriber_ReturnsNilWhenClientUnwired(t *testing.T) {
+func TestStartTokenUsageSubscriber_ReturnsNilWhenBusUnwired(t *testing.T) {
 	cons, _ := newTokenUsageFixture(t)
 	done := startTokenUsageSubscriber(context.Background(), nil, "", buildTokenUsageHandler(cons))
 	if done != nil {
-		t.Fatalf("done = %v; want nil when client unwired", done)
+		t.Fatalf("done = %v; want nil when bus unwired", done)
 	}
 }
 
 func TestStartTokenUsageSubscriber_ReturnsNilWhenHandlerUnwired(t *testing.T) {
-	done := startTokenUsageSubscriber(context.Background(), stubCloudClient{}, "", nil)
+	done := startTokenUsageSubscriber(context.Background(), stubSubscriber{}, "", nil)
 	if done != nil {
 		t.Fatalf("done = %v; want nil when handler unwired", done)
 	}
@@ -347,7 +334,7 @@ func TestStartTokenUsageSubscriber_GoroutineRegisteredWhenWired(t *testing.T) {
 	cons, _ := newTokenUsageFixture(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	done := startTokenUsageSubscriber(ctx, stubCloudClient{}, "", buildTokenUsageHandler(cons))
+	done := startTokenUsageSubscriber(ctx, stubSubscriber{}, "", buildTokenUsageHandler(cons))
 	if done == nil {
 		t.Fatalf("done = nil; want non-nil channel when wired")
 	}
@@ -373,7 +360,7 @@ func TestStartTokenUsageSubscriber_CustomSubscriptionPassThrough(t *testing.T) {
 	cons, _ := newTokenUsageFixture(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	done := startTokenUsageSubscriber(ctx, stubCloudClient{}, "custom-sub", buildTokenUsageHandler(cons))
+	done := startTokenUsageSubscriber(ctx, stubSubscriber{}, "custom-sub", buildTokenUsageHandler(cons))
 	if done == nil {
 		t.Fatalf("done = nil; want non-nil channel for custom name")
 	}

@@ -1,4 +1,4 @@
-// agent_decision_binding.go — Pub/Sub StreamingPull binding for the
+// agent_decision_binding.go — JetStream binding for the
 // chora.observability.agent_decision.logged.v1 consumer (ADR-167 read-model
 // hydration, 2026-05-29).
 //
@@ -8,7 +8,7 @@
 // in chora-infra terraform; the v2 topic schema is Schema-Registry-bound with
 // encoding=BINARY (field-21 `attributes` map per ADR-167 D5).
 //
-// ADR-167 Phase 2: proto.Unmarshal failure FAILS LOUD (NACK → broker retry →
+// ADR-167 Phase 2: proto.Unmarshal failure FAILS LOUD (NAK → broker retry →
 // DLQ); no JSON fallback, no silent drop.
 //
 // D6 4-pillar contract (consumer-side): identical to the token_usage
@@ -19,6 +19,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"strings"
@@ -26,7 +27,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	cgcpubsub "github.com/apollo-chora/chora-common/pubsub"
+	"github.com/apollo-chora/chora-common/eventbus"
 	observabilityv1 "github.com/apollo-chora/chora-contracts/gen/go/chora/observability/v1"
 	"github.com/apollo-chora/chora-observability/internal/adapter/events"
 	"github.com/apollo-chora/chora-observability/internal/domain/decision"
@@ -118,28 +119,25 @@ func riskTierFromGuardrail(outcome string) decision.RiskTier {
 // cost_usd stays nil (blank in O+) for every decision. Used by dev / test
 // paths where pricing.yaml is not loaded. Production wires
 // buildAgentDecisionHandlerWithCost in main.go.
-func buildAgentDecisionHandler(cons *events.AgentDecisionConsumer) cgcpubsub.Handler {
+func buildAgentDecisionHandler(cons *events.AgentDecisionConsumer) eventbus.Handler {
 	return buildAgentDecisionHandlerWithCost(cons, nil)
 }
 
-// buildAgentDecisionHandlerWithCost returns a pubsub.Handler that
+// buildAgentDecisionHandlerWithCost returns an eventbus.Handler that
 // proto.Unmarshal the BINARY-protobuf AgentDecisionLogged payload into the
 // consumer's typed event + calls AgentDecisionConsumer.Handle. Extracted as a
-// free function so a unit test can call it without a Cloud Pub/Sub client or
+// free function so a unit test can call it without a broker connection or
 // goroutine.
 //
 // CHO-1560: extracts the +9 projection fields (model_id / confidence / crew_* /
 // token counts / guardrail_outcome) and, when calc != nil, derives
 // cost_usd_micros from the token counts x pricing. calc == nil → cost stays nil
 // (never fabricated).
-func buildAgentDecisionHandlerWithCost(cons *events.AgentDecisionConsumer, calc *decisionCostCalculator) cgcpubsub.Handler {
+func buildAgentDecisionHandlerWithCost(cons *events.AgentDecisionConsumer, calc *decisionCostCalculator) eventbus.Handler {
 	if cons == nil {
 		panic("agent_decision_binding: nil AgentDecisionConsumer")
 	}
-	return func(ctx context.Context, msg *cgcpubsub.Message) error {
-		if msg == nil {
-			return fmt.Errorf("agent_decision_binding: nil message")
-		}
+	return func(ctx context.Context, msg eventbus.Message) error {
 		var rec observabilityv1.AgentDecisionLogged
 		if err := proto.Unmarshal(msg.Payload, &rec); err != nil {
 			return fmt.Errorf("agent_decision_binding: proto decode payload: %w", err)
@@ -293,26 +291,25 @@ func normalizeGuardrailOutcome(s string) string {
 	}
 }
 
-// startAgentDecisionSubscriber starts a CloudSubscriber goroutine bound to
-// the canonical agent_decision subscription. Returns nil when the Pub/Sub
-// client is unwired (dev / local tests on the in-memory bus).
+// startAgentDecisionSubscriber starts a JetStream consume-loop goroutine
+// bound to the canonical agent_decision subscription. Returns nil when the
+// event bus or the handler is unwired (tests).
 //
 // The supplied handler is the ADR-167 Plane-4 quarantine-wrapped
 // buildAgentDecisionHandler (see main.go) — malformed inbound events fail
-// loud (local dead-letter + error log + governance alert + broker Nack).
+// loud (local dead-letter + error log + governance alert + broker Nak).
 func startAgentDecisionSubscriber(
 	ctx context.Context,
-	client cgcpubsub.CloudPubSubClient,
+	bus eventbus.Subscriber,
 	subscription string,
-	handler cgcpubsub.Handler,
+	handler eventbus.Handler,
 ) chan struct{} {
-	if client == nil || handler == nil {
+	if bus == nil || handler == nil {
 		return nil
 	}
 	if subscription == "" {
 		subscription = DefaultAgentDecisionSubscription
 	}
-	sub := cgcpubsub.NewCloudSubscriber(client)
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
@@ -320,8 +317,8 @@ func startAgentDecisionSubscriber(
 			"observability: agent_decision subscriber started (subscription=%s, topic=%s)",
 			subscription, events.TopicAgentDecisionLogged,
 		)
-		if err := sub.Subscribe(ctx, subscription, handler); err != nil &&
-			err != context.Canceled && err != context.DeadlineExceeded {
+		err := bus.Subscribe(ctx, consumerConfig(subscription, events.TopicAgentDecisionLogged), handler)
+		if err != nil && !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
 			log.Printf("observability: agent_decision subscriber exited: %v", err)
 		}
 	}()

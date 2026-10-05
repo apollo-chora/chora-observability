@@ -190,17 +190,17 @@ func TestValidateFamiliarGrowthAuditBindings_RejectsEmptyBindings(t *testing.T) 
 	}
 }
 
-// --- The StreamingPull starter ----------------------------------------------
+// --- The JetStream starter ----------------------------------------------------
 
-func TestStartFamiliarGrowthAuditSubscribers_NilClientIsNotWired(t *testing.T) {
-	// Dev path: no Pub/Sub client ⇒ no goroutines, and the caller logs it.
+func TestStartFamiliarGrowthAuditSubscribers_NilBusIsNotWired(t *testing.T) {
+	// Dev path: no event bus ⇒ no goroutines, and the caller logs it.
 	sub := growthSubscriberForBindings(t)
 	done, err := startFamiliarGrowthAuditSubscribers(t.Context(), nil, sub, familiarGrowthAuditBindings, nil)
 	if err != nil {
-		t.Fatalf("an unwired client is the dev path, not an error: %v", err)
+		t.Fatalf("an unwired bus is the dev path, not an error: %v", err)
 	}
 	if len(done) != 0 {
-		t.Fatalf("expected no subscriber goroutines without a client, got %d", len(done))
+		t.Fatalf("expected no subscriber goroutines without a bus, got %d", len(done))
 	}
 }
 
@@ -209,7 +209,7 @@ func TestStartFamiliarGrowthAuditSubscribers_InvalidBindingsRefuseToStart(t *tes
 	bad := []familiarGrowthAuditBinding{
 		{Topic: fg.TopicExpAwarded, Subscription: "sub-a", Shape: ingressPush},
 	}
-	_, err := startFamiliarGrowthAuditSubscribers(t.Context(), stubCloudClient{}, sub, bad, nil)
+	_, err := startFamiliarGrowthAuditSubscribers(t.Context(), stubSubscriber{}, sub, bad, nil)
 	if err == nil {
 		t.Fatal("starting with an invalid binding table must return an error, never start a partial lane")
 	}

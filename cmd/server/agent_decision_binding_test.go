@@ -1,5 +1,5 @@
 // agent_decision_binding_test.go — RED→GREEN unit tests for the
-// chora.observability.agent_decision.logged.v1 StreamingPull binding
+// chora.observability.agent_decision.logged.v1 JetStream binding
 // (ADR-167 read-model hydration, 2026-05-29).
 //
 // Verifies:
@@ -11,8 +11,8 @@
 //   - guardrail_outcome → risk_tier derivation (block→high).
 //   - correlation_id falls back through invocation/crew/decision id so a
 //     real decision is never rejected for a blank correlation.
-//   - FAIL LOUD on malformed proto bytes (NACK→DLQ; no JSON fallback).
-//   - startAgentDecisionSubscriber returns nil when client/cons unwired.
+//   - FAIL LOUD on malformed proto bytes (NAK→DLQ; no JSON fallback).
+//   - startAgentDecisionSubscriber returns nil when bus/handler unwired.
 package main
 
 import (
@@ -27,8 +27,8 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	commonenvelope "github.com/apollo-chora/chora-common/envelope"
+	"github.com/apollo-chora/chora-common/eventbus"
 	"github.com/apollo-chora/chora-common/idempotent"
-	cgcpubsub "github.com/apollo-chora/chora-common/pubsub"
 	commonv1 "github.com/apollo-chora/chora-contracts/gen/go/chora/common/v1"
 	observabilityv1 "github.com/apollo-chora/chora-contracts/gen/go/chora/observability/v1"
 	"github.com/apollo-chora/chora-observability/internal/adapter/events"
@@ -215,15 +215,15 @@ func goodDecisionProto() *observabilityv1.AgentDecisionLogged {
 	}
 }
 
-func decisionProtoMessage(t *testing.T, m *observabilityv1.AgentDecisionLogged) *cgcpubsub.Message {
+func decisionProtoMessage(t *testing.T, m *observabilityv1.AgentDecisionLogged) eventbus.Message {
 	t.Helper()
 	data, err := proto.Marshal(m)
 	if err != nil {
 		t.Fatalf("marshal proto: %v", err)
 	}
 	env := m.GetEnvelope()
-	return &cgcpubsub.Message{
-		Topic: events.TopicAgentDecisionLogged,
+	return eventbus.Message{
+		Subject: events.TopicAgentDecisionLogged,
 		Envelope: commonenvelope.Envelope{
 			EventID:       env.GetEventId(),
 			TenantID:      env.GetTenantId(),
@@ -589,8 +589,8 @@ func TestBuildAgentDecisionHandler_KindAndRiskMapping(t *testing.T) {
 func TestBuildAgentDecisionHandler_FailsLoudOnBadProto(t *testing.T) {
 	cons, _ := newAgentDecisionFixture(t)
 	h := buildAgentDecisionHandler(cons)
-	msg := &cgcpubsub.Message{
-		Topic:           events.TopicAgentDecisionLogged,
+	msg := eventbus.Message{
+		Subject:         events.TopicAgentDecisionLogged,
 		Payload:         []byte{0xff, 0xff, 0xff, 0xff}, // not valid protobuf
 		DeliveryAttempt: 1,
 	}
@@ -602,6 +602,6 @@ func TestBuildAgentDecisionHandler_FailsLoudOnBadProto(t *testing.T) {
 func TestStartAgentDecisionSubscriber_NilWhenUnwired(t *testing.T) {
 	cons, _ := newAgentDecisionFixture(t)
 	if done := startAgentDecisionSubscriber(context.Background(), nil, "", buildAgentDecisionHandler(cons)); done != nil {
-		t.Error("expected nil done channel when Pub/Sub client is nil")
+		t.Error("expected nil done channel when event bus is nil")
 	}
 }

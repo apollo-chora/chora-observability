@@ -1,4 +1,4 @@
-// Package reconcilepublish_test verifies the real Pub/Sub anomaly + degraded
+// Package reconcilepublish_test verifies the real event-bus anomaly + degraded
 // publisher adapter for the reconciliation harness.
 package reconcilepublish_test
 
@@ -39,10 +39,10 @@ func (p *stubPublisher) Publish(_ context.Context, topic string, env cgcenvelope
 
 func fixedNow() time.Time { return time.Date(2026, 6, 1, 4, 0, 0, 0, time.UTC) }
 
-func TestPubSubEventSink_Emit_PublishesAnomalyOnCanonicalTopic(t *testing.T) {
+func TestEventSink_Emit_PublishesAnomalyOnCanonicalTopic(t *testing.T) {
 	t.Parallel()
 	pub := &stubPublisher{}
-	sink := reconcilepublish.NewPubSubEventSink(reconcilepublish.Config{
+	sink := reconcilepublish.NewEventSink(reconcilepublish.Config{
 		Publisher: pub, SourceProject: "chora-489812", SourceService: "chora-observability", Now: fixedNow,
 	})
 	ws := time.Date(2026, 5, 31, 0, 0, 0, 0, time.UTC)
@@ -91,10 +91,10 @@ func TestPubSubEventSink_Emit_PublishesAnomalyOnCanonicalTopic(t *testing.T) {
 	}
 }
 
-func TestPubSubEventSink_EmitDegraded_PublishesOnDegradedTopic(t *testing.T) {
+func TestEventSink_EmitDegraded_PublishesOnDegradedTopic(t *testing.T) {
 	t.Parallel()
 	pub := &stubPublisher{}
-	sink := reconcilepublish.NewPubSubEventSink(reconcilepublish.Config{Publisher: pub, Now: fixedNow})
+	sink := reconcilepublish.NewEventSink(reconcilepublish.Config{Publisher: pub, Now: fixedNow})
 	ws := time.Date(2026, 5, 31, 0, 0, 0, 0, time.UTC)
 	ev := reconcile.DegradedEvent{
 		Topic:              reconcile.CanonicalReconcileDegradedTopic,
@@ -121,31 +121,31 @@ func TestPubSubEventSink_EmitDegraded_PublishesOnDegradedTopic(t *testing.T) {
 	}
 }
 
-func TestPubSubEventSink_Emit_PropagatesPublishError(t *testing.T) {
+func TestEventSink_Emit_PropagatesPublishError(t *testing.T) {
 	t.Parallel()
 	pub := &stubPublisher{err: errors.New("broker down")}
-	sink := reconcilepublish.NewPubSubEventSink(reconcilepublish.Config{Publisher: pub})
+	sink := reconcilepublish.NewEventSink(reconcilepublish.Config{Publisher: pub})
 	err := sink.Emit(context.Background(), reconcile.Verdict{IsAnomaly: true}.AsEvent())
 	if err == nil {
 		t.Fatal("expected publish error to surface (fail loud)")
 	}
 }
 
-func TestNewPubSubEventSink_PanicsOnNilPublisher(t *testing.T) {
+func TestNewEventSink_PanicsOnNilPublisher(t *testing.T) {
 	t.Parallel()
 	defer func() {
 		if r := recover(); r == nil {
 			t.Error("expected panic on nil Publisher")
 		}
 	}()
-	_ = reconcilepublish.NewPubSubEventSink(reconcilepublish.Config{})
+	_ = reconcilepublish.NewEventSink(reconcilepublish.Config{})
 }
 
 // Compile-time assertion echoed in test form: the sink satisfies both ports.
-func TestPubSubEventSink_SatisfiesBothPorts(t *testing.T) {
+func TestEventSink_SatisfiesBothPorts(t *testing.T) {
 	t.Parallel()
 	pub := &stubPublisher{}
-	sink := reconcilepublish.NewPubSubEventSink(reconcilepublish.Config{Publisher: pub})
+	sink := reconcilepublish.NewEventSink(reconcilepublish.Config{Publisher: pub})
 	var _ reconcile.EventSink = sink
 	var _ reconcile.DegradedSink = sink
 }

@@ -7,15 +7,16 @@
 // the terminal projection fields + the per-step ADR-197 decision stamps (the
 // O+ full record). chora-observability OWNS the audit projection.
 //
-// PULL / StreamingPull consumer — the service subscribes to its own
-// subscription (NOT a gateway push). Mirrors events.TokenUsageConsumer /
+// PULL consumer — the service subscribes to its own subscription (NOT a
+// gateway push). Mirrors events.TokenUsageConsumer /
 // events.AgentDecisionConsumer; the payload is canonical BINARY protobuf
 // (consumptionv1.RitualRunCompleted — chora-consumption's outbox encoder,
 // CHO-2136) with a JSON fallback for legacy rows still draining at cutover,
 // decoded like events.ClosurePullHandler.
 //
 // Hexagonal:
-//   - INBOUND ADAPTER from Pub/Sub (StreamingPull binding lives in cmd/server).
+//   - INBOUND ADAPTER from the NATS JetStream event bus (binding lives in
+//     cmd/server).
 //   - depends on ritualaudit.Repository (local-DB only — no cross-DB queries
 //     per ddd-enforcement HARD RULE).
 //   - idempotency via idempotent.Store keyed on event_id (at-least-once
@@ -36,13 +37,13 @@ import (
 
 	consumptionv1 "github.com/apollo-chora/chora-contracts/gen/go/chora/consumption/v1"
 
+	"github.com/apollo-chora/chora-common/eventbus"
 	"github.com/apollo-chora/chora-common/idempotent"
-	cgcpubsub "github.com/apollo-chora/chora-common/pubsub"
 	ra "github.com/apollo-chora/chora-observability/internal/domain/ritualaudit"
 )
 
 // RitualRunAuditInboxTTL is the dedupe-key retention window for the consumer's
-// inbox. 7d mirrors the Pub/Sub max redelivery window.
+// inbox. 7d mirrors the event bus max redelivery window.
 const RitualRunAuditInboxTTL = 7 * 24 * time.Hour
 
 // RitualRunCompletedEvent is the language-agnostic representation of an inbound
@@ -205,7 +206,7 @@ func validateRitualRunEvent(ev RitualRunCompletedEvent) error {
 // canonical BINARY protobuf (consumptionv1.RitualRunCompleted) or, for legacy
 // in-flight rows, its JSON shape (CHO-2136 cutover). Envelope fields
 // (event_id / tenant_id / gcid / occurred_at / traceparent) arrive on the
-// Pub/Sub attributes, not here.
+// eventbus message envelope, not here.
 type ritualRunCompletedPayload struct {
 	RunID         string           `json:"run_id"`
 	RitualID      string           `json:"ritual_id"`
@@ -297,14 +298,15 @@ func ritualStampsFromProto(in []*consumptionv1.RitualStepStamp) []map[string]any
 	return out
 }
 
-// RitualRunAuditPullHandler adapts the consumer to a cgcpubsub.Handler for the
-// StreamingPull binding. It decodes the payload body (binary proto first, JSON
+// RitualRunAuditPullHandler adapts the consumer to an eventbus.Handler for the
+// JetStream binding. It decodes the payload body (binary proto first, JSON
 // fallback — CHO-2136) + reads the identity fields from the reconstructed
 // envelope, then calls Handle. Mirrors events.ClosurePullHandler. The
-// CloudSubscriber acks on nil, nacks on error (ack-after-processing per D6.2).
-func RitualRunAuditPullHandler(c *RitualRunAuditConsumer) cgcpubsub.Handler {
-	return func(ctx context.Context, msg *cgcpubsub.Message) error {
-		if c == nil || msg == nil {
+// JetStream consume loop acks on nil, naks on error (ack-after-processing per
+// D6.2).
+func RitualRunAuditPullHandler(c *RitualRunAuditConsumer) eventbus.Handler {
+	return func(ctx context.Context, msg eventbus.Message) error {
+		if c == nil {
 			return errors.New("events: ritual_run_audit pull handler not initialised")
 		}
 		p, err := decodeRitualRunCompletedPayload(msg.Payload)
@@ -312,7 +314,7 @@ func RitualRunAuditPullHandler(c *RitualRunAuditConsumer) cgcpubsub.Handler {
 			return fmt.Errorf("events: ritual_run_completed payload decode: %w", err)
 		}
 		env := msg.Envelope
-		topic := msg.Topic
+		topic := msg.Subject
 		if topic == "" {
 			topic = ra.TopicFamiliarRitualRunCompleted
 		}

@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	cgcpubsub "github.com/apollo-chora/chora-common/pubsub"
+	"github.com/apollo-chora/chora-common/eventbus"
 	obsoutbox "github.com/apollo-chora/chora-observability/internal/adapter/outbox"
 )
 
@@ -61,7 +61,7 @@ func TestDefaultQuarantineLogger(t *testing.T) {
 
 func TestQuarantineIdentity_SynthesisesWhenAttrsAbsent(t *testing.T) {
 	t.Parallel()
-	rowID, tenantID := quarantineIdentity("token_usage", nil)
+	rowID, tenantID := quarantineIdentity("token_usage", eventbus.Message{})
 	if rowID == "" {
 		t.Error("expected synthesised row id")
 	}
@@ -69,7 +69,7 @@ func TestQuarantineIdentity_SynthesisesWhenAttrsAbsent(t *testing.T) {
 		t.Errorf("tenant = %q; want platform", tenantID)
 	}
 	// Empty envelope carries no attrs.
-	rowID, tenantID = quarantineIdentity("agent_decision", &cgcpubsub.Message{})
+	rowID, tenantID = quarantineIdentity("agent_decision", eventbus.Message{})
 	if rowID == "" || tenantID != "platform" {
 		t.Errorf("empty envelope -> (%q, %q)", rowID, tenantID)
 	}
@@ -88,16 +88,16 @@ func (dupStore) Deadletter(context.Context, string, string, int) error      { re
 
 func TestQuarantine_StoreDuplicateInsertIsIdempotentHappyPath(t *testing.T) {
 	t.Parallel()
-	inner := func(_ context.Context, _ *cgcpubsub.Message) error { return errors.New("decode error") }
+	inner := func(_ context.Context, _ eventbus.Message) error { return errors.New("decode error") }
 	h := withQuarantine(inner, quarantineDeps{
 		ConsumerName: "token_usage",
 		Topic:        "chora.observability.token_usage.recorded.v1",
 		Store:        dupStore{},
 		Now:          func() time.Time { return time.Unix(1_700_000_000, 0).UTC() },
 	})
-	err := h(context.Background(), &cgcpubsub.Message{})
+	err := h(context.Background(), eventbus.Message{})
 	if err == nil {
-		t.Fatal("duplicate insert must still return the original error (broker Nack)")
+		t.Fatal("duplicate insert must still return the original error (broker Nak)")
 	}
 }
 
@@ -114,14 +114,6 @@ func TestBootstrapDBPool_NoEnv_FallsBackToNil(t *testing.T) {
 	}
 	if shutdown != nil {
 		t.Error("expected nil shutdown when no DSN env is set")
-	}
-}
-
-func TestBootstrapPubSubClient_NoProject_FallsBackToNil(t *testing.T) {
-	t.Setenv("CHORA_PUBSUB_PROJECT", "")
-	cli, shutdown := bootstrapPubSubClient(context.Background())
-	if cli != nil || shutdown != nil {
-		t.Error("expected nil client/shutdown when CHORA_PUBSUB_PROJECT is unset")
 	}
 }
 

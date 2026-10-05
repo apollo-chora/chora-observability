@@ -1,10 +1,10 @@
 // event_sink_test.go — env-driven EventSink resolution for cmd/reconcile.
 //
 // Verifies the ADR-167 Tier 2 wiring decision tree:
-//   - CHORA_PUBSUB_PROJECT unset + not-required → logging fallback (dev).
-//   - CHORA_PUBSUB_PROJECT unset + RECONCILE_REQUIRE_PUBSUB → fail loud.
+//   - NATS_URL unset + not-required → logging fallback (dev).
+//   - NATS_URL unset + RECONCILE_REQUIRE_EVENTBUS → fail loud.
 //
-// The "real CloudPublisher wired" branch needs a live GCP client (network),
+// The "real JetStream bus wired" branch needs a live NATS server (network),
 // so it is exercised by the reconcilepublish adapter unit test with a stub
 // publisher instead — here we only assert the env decision tree + the
 // fail-loud guard, which need no broker.
@@ -20,8 +20,8 @@ import (
 
 func TestNewEventSinksFromEnv_UnsetProject_LoggingFallback(t *testing.T) {
 	withEnv(t, map[string]string{
-		"CHORA_PUBSUB_PROJECT":     "",
-		"RECONCILE_REQUIRE_PUBSUB": "",
+		"NATS_URL":                   "",
+		"RECONCILE_REQUIRE_EVENTBUS": "",
 	})
 	sinks, shutdown, err := newEventSinksFromEnv(context.Background())
 	if err != nil {
@@ -43,15 +43,15 @@ func TestNewEventSinksFromEnv_UnsetProject_LoggingFallback(t *testing.T) {
 
 func TestNewEventSinksFromEnv_RequiredButUnset_FailsLoud(t *testing.T) {
 	withEnv(t, map[string]string{
-		"CHORA_PUBSUB_PROJECT":     "",
-		"RECONCILE_REQUIRE_PUBSUB": "1",
+		"NATS_URL":                   "",
+		"RECONCILE_REQUIRE_EVENTBUS": "1",
 	})
 	_, _, err := newEventSinksFromEnv(context.Background())
 	if err == nil {
-		t.Fatal("expected fail-loud error when Pub/Sub required but project unset")
+		t.Fatal("expected fail-loud error when the event bus is required but NATS_URL is unset")
 	}
-	if !errors.Is(err, errPubSubRequired) {
-		t.Errorf("err = %v; want errPubSubRequired", err)
+	if !errors.Is(err, errEventBusRequired) {
+		t.Errorf("err = %v; want errEventBusRequired", err)
 	}
 }
 

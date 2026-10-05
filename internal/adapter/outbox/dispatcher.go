@@ -1,10 +1,9 @@
 // Package outbox — Dispatcher implementation.
 //
-// Dispatcher drains pending outbox_events rows to Cloud Pub/Sub. Composes
-// Store.FetchPending → Bus.Publish → Store.MarkPublished / MarkFailed /
-// Deadletter. On max-attempts exhaustion the row lands in
-// outbox_dead_letters AND a Pub/Sub-side DLQ subscription (configured in
-// Terraform — see m10-pubsub-dlq).
+// Dispatcher drains pending outbox_events rows to the NATS JetStream event
+// bus. Composes Store.FetchPending → Bus.Publish → Store.MarkPublished /
+// MarkFailed / Deadletter. On max-attempts exhaustion the row lands in
+// outbox_dead_letters AND a broker-side DLQ subject (chora.dlq.<topic>).
 //
 // Per `feedback_d6_resilience_first_class` B.6.2.a — dispatcher is the
 // retry + DLQ ladder for the producer-side outbox. Subscriber-side
@@ -88,7 +87,7 @@ type SinkFailureAlert struct {
 }
 
 // AlertSink is the optional write port the Dispatcher uses to emit the
-// governance sink-failure alert. Production wires a Pub/Sub-backed
+// governance sink-failure alert. Production wires an event-bus-backed
 // implementation (PublisherAlertSink, see alert_sink.go); dev / tests use a
 // recording stub. When unset the Dispatcher logs the alert at error level
 // only (it NEVER silently swallows — the dead-letter row + log remain).
@@ -96,9 +95,9 @@ type AlertSink interface {
 	EmitSinkFailure(ctx context.Context, alert SinkFailureAlert) error
 }
 
-// Bus is the Pub/Sub publisher contract the Dispatcher uses. Matches
-// `chora-common/pubsub.OutboxCompatible` so the InMemoryBus + the
-// CloudPubSub adapter slot in directly.
+// Bus is the event-bus publisher contract the Dispatcher uses. Matches
+// `eventbus.Publisher` so the JetStream bus + the in-memory test bus slot in
+// directly.
 type Bus interface {
 	Publish(ctx context.Context, topic string, env cgcenvelope.Envelope, payload []byte) error
 }
@@ -108,7 +107,7 @@ type DispatcherConfig struct {
 	// Store is the outbox table backend. Required.
 	Store Store
 
-	// Bus is the Pub/Sub publisher. Required.
+	// Bus is the event-bus publisher. Required.
 	Bus Bus
 
 	// WorkerID identifies the dispatcher worker that records Deadletter

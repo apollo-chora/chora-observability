@@ -16,7 +16,7 @@ import (
 	tenancyv1 "github.com/apollo-chora/chora-contracts/gen/go/chora/tenancy/v1"
 
 	"github.com/apollo-chora/chora-common/envelope"
-	cgcpubsub "github.com/apollo-chora/chora-common/pubsub"
+	"github.com/apollo-chora/chora-common/eventbus"
 	"github.com/apollo-chora/chora-observability/internal/adapter/events"
 	"github.com/apollo-chora/chora-observability/internal/adapter/inmem"
 	"github.com/apollo-chora/chora-observability/internal/adapter/subscribers"
@@ -123,8 +123,8 @@ func TestFamiliarGrowthAuditPullHandler_ProjectsBinaryProtoExpAwarded(t *testing
 		t.Fatalf("construct: %v", err)
 	}
 
-	msg := &cgcpubsub.Message{
-		Topic:    fg.TopicExpAwarded,
+	msg := eventbus.Message{
+		Subject:  fg.TopicExpAwarded,
 		Envelope: testEnvelope("aaaaaaaa-0000-7000-8000-000000000001"),
 		Payload:  expAwardedProto(t, "aaaaaaaa-0000-7000-8000-000000000001", 40, "atom_session"),
 	}
@@ -174,8 +174,8 @@ func TestFamiliarGrowthAuditPullHandler_ProjectsWhenTopicAttributeAbsent(t *test
 		t.Fatalf("construct: %v", err)
 	}
 
-	msg := &cgcpubsub.Message{
-		Topic:    "", // legacy publish — no topic attribute on the wire
+	msg := eventbus.Message{
+		Subject:  "", // legacy publish — no topic attribute on the wire
 		Envelope: testEnvelope("aaaaaaaa-0000-7000-8000-000000000002"),
 		Payload:  expAwardedProto(t, "aaaaaaaa-0000-7000-8000-000000000002", 10, "atom_session"),
 	}
@@ -199,8 +199,8 @@ func TestFamiliarGrowthAuditPullHandler_MisroutedMessageFailsLoud(t *testing.T) 
 	// A message stamped with a DIFFERENT topic than the subscription is bound
 	// to is a real broker/fan-out misconfiguration. It must nack → DLQ, never
 	// ack-and-drop.
-	msg := &cgcpubsub.Message{
-		Topic:    fg.TopicStageUp,
+	msg := eventbus.Message{
+		Subject:  fg.TopicStageUp,
 		Envelope: testEnvelope("aaaaaaaa-0000-7000-8000-000000000003"),
 		Payload:  expAwardedProto(t, "aaaaaaaa-0000-7000-8000-000000000003", 5, "atom_session"),
 	}
@@ -222,8 +222,8 @@ func TestFamiliarGrowthAuditPullHandler_UndecodablePayloadFailsLoud(t *testing.T
 	if err != nil {
 		t.Fatalf("construct: %v", err)
 	}
-	msg := &cgcpubsub.Message{
-		Topic:    fg.TopicExpAwarded,
+	msg := eventbus.Message{
+		Subject:  fg.TopicExpAwarded,
 		Envelope: testEnvelope("aaaaaaaa-0000-7000-8000-000000000004"),
 		Payload:  []byte("{not json and not proto"),
 	}
@@ -238,24 +238,13 @@ func TestFamiliarGrowthAuditPullHandler_EmptyPayloadFailsLoud(t *testing.T) {
 	if err != nil {
 		t.Fatalf("construct: %v", err)
 	}
-	msg := &cgcpubsub.Message{
-		Topic:    fg.TopicExpAwarded,
+	msg := eventbus.Message{
+		Subject:  fg.TopicExpAwarded,
 		Envelope: testEnvelope("aaaaaaaa-0000-7000-8000-000000000005"),
 		Payload:  nil,
 	}
 	if err := h(context.Background(), msg); err == nil {
 		t.Fatal("an empty payload must return an error, not be silently acked")
-	}
-}
-
-func TestFamiliarGrowthAuditPullHandler_NilMessageFailsLoud(t *testing.T) {
-	sub, _ := newTestSubscriber(t)
-	h, err := events.FamiliarGrowthAuditPullHandler(sub, fg.TopicExpAwarded)
-	if err != nil {
-		t.Fatalf("construct: %v", err)
-	}
-	if err := h(context.Background(), nil); err == nil {
-		t.Fatal("a nil message must return an error, not be silently acked")
 	}
 }
 
@@ -281,7 +270,7 @@ func TestFamiliarGrowthAuditPullHandler_IdentityFromEnvelope(t *testing.T) {
 		t.Fatalf("marshal: %v", merr)
 	}
 
-	msg := &cgcpubsub.Message{Topic: fg.TopicExpAwarded, Envelope: env, Payload: payload}
+	msg := eventbus.Message{Subject: fg.TopicExpAwarded, Envelope: env, Payload: payload}
 	if err := h(context.Background(), msg); err != nil {
 		t.Fatalf("handler returned error: %v", err)
 	}
@@ -304,8 +293,8 @@ func TestFamiliarGrowthAuditPullHandler_MissingEnvelopeEventIDFailsLoud(t *testi
 		t.Fatalf("construct: %v", err)
 	}
 	env := testEnvelope("")
-	msg := &cgcpubsub.Message{
-		Topic:    fg.TopicExpAwarded,
+	msg := eventbus.Message{
+		Subject:  fg.TopicExpAwarded,
 		Envelope: env,
 		Payload:  expAwardedProto(t, "", 1, "atom_session"),
 	}
@@ -324,9 +313,9 @@ func TestFamiliarGrowthAuditPullHandler_RedeliveryIsIdempotent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("construct: %v", err)
 	}
-	newMsg := func() *cgcpubsub.Message {
-		return &cgcpubsub.Message{
-			Topic:    fg.TopicExpAwarded,
+	newMsg := func() eventbus.Message {
+		return eventbus.Message{
+			Subject:  fg.TopicExpAwarded,
 			Envelope: testEnvelope("aaaaaaaa-0000-7000-8000-000000000007"),
 			Payload:  expAwardedProto(t, "aaaaaaaa-0000-7000-8000-000000000007", 25, "atom_session"),
 		}
@@ -360,8 +349,8 @@ func TestFamiliarGrowthAuditPullHandler_StageUpProjects(t *testing.T) {
 	if merr != nil {
 		t.Fatalf("marshal: %v", merr)
 	}
-	msg := &cgcpubsub.Message{
-		Topic:    fg.TopicStageUp,
+	msg := eventbus.Message{
+		Subject:  fg.TopicStageUp,
 		Envelope: testEnvelope("bbbbbbbb-0000-7000-8000-000000000001"),
 		Payload:  payload,
 	}
@@ -389,8 +378,8 @@ func TestFamiliarGrowthAuditPullHandler_HatchedProjectsFunnel(t *testing.T) {
 	if merr != nil {
 		t.Fatalf("marshal: %v", merr)
 	}
-	msg := &cgcpubsub.Message{
-		Topic:    fg.TopicHatched,
+	msg := eventbus.Message{
+		Subject:  fg.TopicHatched,
 		Envelope: testEnvelope("cccccccc-0000-7000-8000-000000000001"),
 		Payload:  payload,
 	}
@@ -423,8 +412,8 @@ func TestFamiliarGrowthAuditPullHandler_RepoFailurePropagates(t *testing.T) {
 	if err != nil {
 		t.Fatalf("construct: %v", err)
 	}
-	msg := &cgcpubsub.Message{
-		Topic:    fg.TopicExpAwarded,
+	msg := eventbus.Message{
+		Subject:  fg.TopicExpAwarded,
 		Envelope: testEnvelope("dddddddd-0000-7000-8000-000000000001"),
 		Payload:  expAwardedProto(t, "dddddddd-0000-7000-8000-000000000001", 1, "atom_session"),
 	}
@@ -552,8 +541,8 @@ func TestFamiliarGrowthAuditPullHandler_EveryBoundTopicProjects(t *testing.T) {
 			if merr != nil {
 				t.Fatalf("marshal: %v", merr)
 			}
-			msg := &cgcpubsub.Message{
-				Topic:    tc.topic,
+			msg := eventbus.Message{
+				Subject:  tc.topic,
 				Envelope: testEnvelope(tc.eventID),
 				Payload:  payload,
 			}

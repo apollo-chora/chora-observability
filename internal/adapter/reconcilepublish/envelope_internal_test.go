@@ -15,7 +15,7 @@ import (
 
 func TestBuildEnvelope_OccurredAtFallback(t *testing.T) {
 	t.Parallel()
-	sink := NewPubSubEventSink(Config{
+	sink := NewEventSink(Config{
 		Publisher:     &alwaysFailPublisher{},
 		SourceProject: "chora-489812",
 		SourceService: "chora-observability",
@@ -52,12 +52,12 @@ func TestBuildEnvelope_OccurredAtFallback(t *testing.T) {
 type alwaysFailPublisher struct{}
 
 func (a *alwaysFailPublisher) Publish(_ context.Context, _ string, _ cgcenvelope.Envelope, _ []byte) error {
-	return errors.New("pubsub down")
+	return errors.New("broker down")
 }
 
-func TestPubSubEventSink_EmitDegraded_PublishError(t *testing.T) {
+func TestEventSink_EmitDegraded_PublishError(t *testing.T) {
 	t.Parallel()
-	sink := NewPubSubEventSink(Config{Publisher: &alwaysFailPublisher{}})
+	sink := NewEventSink(Config{Publisher: &alwaysFailPublisher{}})
 	err := sink.EmitDegraded(context.Background(), reconcile.DegradedEvent{
 		UpstreamComponent: "bigquery",
 		WindowStart:       time.Date(2026, 5, 9, 0, 0, 0, 0, time.UTC),
@@ -68,9 +68,9 @@ func TestPubSubEventSink_EmitDegraded_PublishError(t *testing.T) {
 	}
 }
 
-func TestPubSubEventSink_Emit_PublishError(t *testing.T) {
+func TestEventSink_Emit_PublishError(t *testing.T) {
 	t.Parallel()
-	sink := NewPubSubEventSink(Config{Publisher: &alwaysFailPublisher{}})
+	sink := NewEventSink(Config{Publisher: &alwaysFailPublisher{}})
 	if err := sink.Emit(context.Background(), reconcile.AnomalyEvent{
 		WindowStart: time.Date(2026, 5, 9, 0, 0, 0, 0, time.UTC),
 		WindowEnd:   time.Date(2026, 5, 10, 0, 0, 0, 0, time.UTC),

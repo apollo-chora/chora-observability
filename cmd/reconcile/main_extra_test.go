@@ -1,6 +1,6 @@
 // main_extra_test.go — completes cmd/reconcile coverage for the env helpers
 // (getenvInt / getenvFloat / envOrDefault), the static token source, the
-// Pub/Sub-required fail-loud path, and the run() composition root (which is
+// event-bus-required fail-loud path, and the run() composition root (which is
 // fully exercisable offline: mock billing + BigQuery clients + the logging
 // anomaly sink).
 package main
@@ -77,10 +77,10 @@ func TestEnvOrDefault(t *testing.T) {
 
 func TestRun_RequiresProject(t *testing.T) {
 	withEnv(t, map[string]string{
-		"GOOGLE_CLOUD_PROJECT":     "",
-		"BILLING_CLIENT_MODE":      "mock",
-		"CHORA_PUBSUB_PROJECT":     "",
-		"RECONCILE_REQUIRE_PUBSUB": "",
+		"GOOGLE_CLOUD_PROJECT":       "",
+		"BILLING_CLIENT_MODE":        "mock",
+		"NATS_URL":                   "",
+		"RECONCILE_REQUIRE_EVENTBUS": "",
 	})
 	if err := run(context.Background()); err == nil {
 		t.Fatal("expected error when GOOGLE_CLOUD_PROJECT is unset")
@@ -89,38 +89,38 @@ func TestRun_RequiresProject(t *testing.T) {
 
 func TestRun_HappyPath_MockClients(t *testing.T) {
 	withEnv(t, map[string]string{
-		"GOOGLE_CLOUD_PROJECT":     "chora-test",
-		"BILLING_CLIENT_MODE":      "",
-		"CHORA_PUBSUB_PROJECT":     "",
-		"RECONCILE_REQUIRE_PUBSUB": "",
-		"RECONCILE_LOOKBACK_DAYS":  "2",
+		"GOOGLE_CLOUD_PROJECT":       "chora-test",
+		"BILLING_CLIENT_MODE":        "",
+		"NATS_URL":                   "",
+		"RECONCILE_REQUIRE_EVENTBUS": "",
+		"RECONCILE_LOOKBACK_DAYS":    "2",
 	})
 	if err := run(context.Background()); err != nil {
 		t.Fatalf("run: %v", err)
 	}
 }
 
-func TestRun_PubSubRequired_FailsLoud(t *testing.T) {
+func TestRun_EventBusRequired_FailsLoud(t *testing.T) {
 	withEnv(t, map[string]string{
-		"GOOGLE_CLOUD_PROJECT":     "chora-test",
-		"BILLING_CLIENT_MODE":      "mock",
-		"CHORA_PUBSUB_PROJECT":     "",
-		"RECONCILE_REQUIRE_PUBSUB": "1",
+		"GOOGLE_CLOUD_PROJECT":       "chora-test",
+		"BILLING_CLIENT_MODE":        "mock",
+		"NATS_URL":                   "",
+		"RECONCILE_REQUIRE_EVENTBUS": "1",
 	})
 	err := run(context.Background())
-	if err == nil || !strings.Contains(err.Error(), "RECONCILE_REQUIRE_PUBSUB") {
-		t.Fatalf("err = %v; want RECONCILE_REQUIRE_PUBSUB failure", err)
+	if err == nil || !strings.Contains(err.Error(), "RECONCILE_REQUIRE_EVENTBUS") {
+		t.Fatalf("err = %v; want RECONCILE_REQUIRE_EVENTBUS failure", err)
 	}
 }
 
-func TestNewEventSinksFromEnv_RealPubSubOrDegrade(t *testing.T) {
-	// CHORA_PUBSUB_PROJECT set: either a real client comes up (emulator/ADC
-	// present) or NewGCPClient fails and the non-required path degrades to the
-	// logging fallback. Both outcomes must construct a working Anomaly sink.
+func TestNewEventSinksFromEnv_RealEventBusOrDegrade(t *testing.T) {
+	// NATS_URL set: either a real bus comes up (a live NATS server is
+	// reachable) or nats.Connect fails and the non-required path degrades to
+	// the logging fallback. Both outcomes must construct a working Anomaly sink.
 	withEnv(t, map[string]string{
-		"CHORA_PUBSUB_PROJECT":     "chora-test",
-		"RECONCILE_REQUIRE_PUBSUB": "",
-		"CHORA_SOURCE_PROJECT":     "chora-custom",
+		"NATS_URL":                   "chora-test",
+		"RECONCILE_REQUIRE_EVENTBUS": "",
+		"CHORA_SOURCE_PROJECT":       "chora-custom",
 	})
 	sinks, shutdown, err := newEventSinksFromEnv(t.Context())
 	if err != nil {
@@ -138,24 +138,24 @@ func TestNewEventSinksFromEnv_RealPubSubOrDegrade(t *testing.T) {
 }
 
 func TestNewEventSinksFromEnv_RequiredWithProjectSet(t *testing.T) {
-	// When REQUIRED is asserted, a client-init failure must FAIL LOUD (join
-	// errPubSubRequired), never degrade silently.
+	// When REQUIRED is asserted, a bus-init failure must FAIL LOUD (join
+	// errEventBusRequired), never degrade silently.
 	withEnv(t, map[string]string{
-		"CHORA_PUBSUB_PROJECT":     "chora-test",
-		"RECONCILE_REQUIRE_PUBSUB": "yes",
+		"NATS_URL":                   "chora-test",
+		"RECONCILE_REQUIRE_EVENTBUS": "yes",
 	})
 	sinks, shutdown, err := newEventSinksFromEnv(t.Context())
-	// If the client init succeeded (emulator/ADC available) there is no error
-	// and a real sink is wired — also acceptable. We only assert the fail-loud
-	// shape when the init actually failed.
+	// If the bus init succeeded (a live NATS server is reachable) there is no
+	// error and a real sink is wired — also acceptable. We only assert the
+	// fail-loud shape when the init actually failed.
 	if err != nil {
-		if !strings.Contains(err.Error(), "RECONCILE_REQUIRE_PUBSUB") {
-			t.Fatalf("err = %v; want wrapped errPubSubRequired", err)
+		if !strings.Contains(err.Error(), "RECONCILE_REQUIRE_EVENTBUS") {
+			t.Fatalf("err = %v; want wrapped errEventBusRequired", err)
 		}
 		return
 	}
 	if sinks.Anomaly == nil {
-		t.Fatal("expected a sink when the client initialised")
+		t.Fatal("expected a sink when the bus initialised")
 	}
 	if shutdown != nil {
 		shutdown()
@@ -164,10 +164,10 @@ func TestNewEventSinksFromEnv_RequiredWithProjectSet(t *testing.T) {
 
 func TestMain_RunsHappyPath(t *testing.T) {
 	withEnv(t, map[string]string{
-		"GOOGLE_CLOUD_PROJECT":     "chora-main-test",
-		"BILLING_CLIENT_MODE":      "",
-		"CHORA_PUBSUB_PROJECT":     "",
-		"RECONCILE_REQUIRE_PUBSUB": "",
+		"GOOGLE_CLOUD_PROJECT":       "chora-main-test",
+		"BILLING_CLIENT_MODE":        "",
+		"NATS_URL":                   "",
+		"RECONCILE_REQUIRE_EVENTBUS": "",
 	})
 	// main() calls run(); on the happy path (mock clients, logging sink) it
 	// returns without log.Fatalf. A regression that fatals fails the test.

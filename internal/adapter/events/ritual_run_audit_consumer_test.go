@@ -15,8 +15,8 @@ import (
 	consumptionv1 "github.com/apollo-chora/chora-contracts/gen/go/chora/consumption/v1"
 
 	"github.com/apollo-chora/chora-common/envelope"
+	"github.com/apollo-chora/chora-common/eventbus"
 	"github.com/apollo-chora/chora-common/idempotent"
-	cgcpubsub "github.com/apollo-chora/chora-common/pubsub"
 	"github.com/apollo-chora/chora-observability/internal/adapter/events"
 	"github.com/apollo-chora/chora-observability/internal/adapter/inmem"
 	ra "github.com/apollo-chora/chora-observability/internal/domain/ritualaudit"
@@ -213,8 +213,8 @@ func TestRitualRunAuditPullHandler_DecodesJSONPayload(t *testing.T) {
 	if err != nil {
 		t.Fatalf("marshal payload: %v", err)
 	}
-	msg := &cgcpubsub.Message{
-		Topic: ra.TopicFamiliarRitualRunCompleted,
+	msg := eventbus.Message{
+		Subject: ra.TopicFamiliarRitualRunCompleted,
 		Envelope: envelope.Envelope{
 			EventID:     ritEventID2,
 			TenantID:    ritTenantID,
@@ -282,8 +282,8 @@ func TestRitualRunAuditPullHandler_DecodesBinaryProtoPayload(t *testing.T) {
 	if err != nil {
 		t.Fatalf("marshal binary payload: %v", err)
 	}
-	msg := &cgcpubsub.Message{
-		Topic: ra.TopicFamiliarRitualRunCompleted,
+	msg := eventbus.Message{
+		Subject: ra.TopicFamiliarRitualRunCompleted,
 		Envelope: envelope.Envelope{
 			EventID:     ritEventID2,
 			TenantID:    ritTenantID,
@@ -322,8 +322,8 @@ func TestRitualRunAuditPullHandler_DecodesBinaryProtoPayload(t *testing.T) {
 func TestRitualRunAuditPullHandler_MalformedPayloadErrors(t *testing.T) {
 	t.Parallel()
 	c, _ := newRitualConsumer(t)
-	msg := &cgcpubsub.Message{
-		Topic:    ra.TopicFamiliarRitualRunCompleted,
+	msg := eventbus.Message{
+		Subject:  ra.TopicFamiliarRitualRunCompleted,
 		Envelope: envelope.Envelope{EventID: ritEventID1, TenantID: ritTenantID},
 		Payload:  []byte("{not-json"),
 	}

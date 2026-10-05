@@ -9,7 +9,7 @@
 //   - Source 2: Vertex Billing API aggregated cost over the same window.
 //   - Tolerance: ±0.01% (default; tunable via RECONCILE_TOLERANCE_FRACTION).
 //   - Drift exceeding tolerance → publish
-//     chora.governance.payment_reconciliation.anomaly.v1 (Pub/Sub).
+//     chora.governance.payment_reconciliation.anomaly.v1 (event bus).
 //
 // Configuration (env-only per CLAUDE.md no-inline-config):
 //
@@ -23,9 +23,9 @@
 //	                              cloud-go billing client at Tier 2)
 //	OTEL_EXPORTER_OTLP_ENDPOINT   OTLP endpoint for self-traces
 //
-// Output: structured JSON log lines + (on anomaly) Pub/Sub event published
+// Output: structured JSON log lines + (on anomaly) event-bus publish
 // via the EventSink adapter (currently a stub that logs; Tier 2 swaps in the
-// chora-common/pubsub adapter).
+// chora-common/eventbus adapter).
 package main
 
 import (
@@ -76,9 +76,9 @@ func run(ctx context.Context) error {
 	log.Printf("reconcile.billing_client mode=%s type=%T",
 		strings.ToLower(strings.TrimSpace(os.Getenv("BILLING_CLIENT_MODE"))), bl)
 
-	// Real Pub/Sub anomaly + degraded publisher (ADR-167 Tier 2). Logging
-	// fallback only when CHORA_PUBSUB_PROJECT is unset; fails loud in prod
-	// when RECONCILE_REQUIRE_PUBSUB is asserted but the broker is unavailable.
+	// Real event-bus anomaly + degraded publisher (ADR-167 Tier 2). Logging
+	// fallback only when NATS_URL is unset; fails loud in prod
+	// when RECONCILE_REQUIRE_EVENTBUS is asserted but the broker is unavailable.
 	sinks, sinkShutdown, err := newEventSinksFromEnv(ctx)
 	if err != nil {
 		return err

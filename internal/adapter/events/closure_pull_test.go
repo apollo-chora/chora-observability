@@ -1,6 +1,6 @@
 // Tests for the closure pull-loop adapter (CHO-1719 gap 4) — binds the
-// federated closure-saga ClosureSubscriber to the cgcpubsub Handler
-// contract (CloudSubscriber acks on nil, nacks on error, per D6.2).
+// federated closure-saga ClosureSubscriber to the eventbus.Handler
+// contract (the JetStream consume loop acks on nil, naks on error, per D6.2).
 package events_test
 
 import (
@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/apollo-chora/chora-common/envelope"
-	cgcpubsub "github.com/apollo-chora/chora-common/pubsub"
+	"github.com/apollo-chora/chora-common/eventbus"
 
 	"github.com/apollo-chora/chora-observability/internal/adapter/events"
 )
@@ -36,8 +36,8 @@ func TestClosurePullHandler_ValidPayloadAcksOnNewTopic(t *testing.T) {
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
 	}
-	msg := &cgcpubsub.Message{
-		Topic:    events.TopicPseudonymiseRequested,
+	msg := eventbus.Message{
+		Subject:  events.TopicPseudonymiseRequested,
 		Envelope: envelope.Envelope{},
 		Payload:  body,
 	}
@@ -65,8 +65,8 @@ func TestClosurePullHandler_MalformedJSONErrors(t *testing.T) {
 	sub, pub, _ := newPullFixture(t)
 	handler := events.ClosurePullHandler(sub)
 
-	msg := &cgcpubsub.Message{
-		Topic:   events.TopicPseudonymiseRequested,
+	msg := eventbus.Message{
+		Subject: events.TopicPseudonymiseRequested,
 		Payload: []byte("{not-json"),
 	}
 	if err := handler(context.Background(), msg); err == nil {
@@ -90,8 +90,8 @@ func TestClosurePullHandler_TraceparentFallsBackToEnvelope(t *testing.T) {
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
 	}
-	msg := &cgcpubsub.Message{
-		Topic: events.TopicPseudonymiseRequested,
+	msg := eventbus.Message{
+		Subject: events.TopicPseudonymiseRequested,
 		Envelope: envelope.Envelope{
 			Traceparent: testTrace,
 			Tracestate:  testTracestate,
@@ -112,11 +112,7 @@ func TestClosurePullHandler_TraceparentFallsBackToEnvelope(t *testing.T) {
 
 func TestClosurePullHandler_NilGuards(t *testing.T) {
 	t.Parallel()
-	if err := events.ClosurePullHandler(nil)(context.Background(), &cgcpubsub.Message{}); err == nil {
+	if err := events.ClosurePullHandler(nil)(context.Background(), eventbus.Message{}); err == nil {
 		t.Fatalf("nil subscriber should error")
-	}
-	sub, _, _ := newPullFixture(t)
-	if err := events.ClosurePullHandler(sub)(context.Background(), nil); err == nil {
-		t.Fatalf("nil message should error")
 	}
 }
