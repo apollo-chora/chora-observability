@@ -67,7 +67,7 @@ func insertRow(t *testing.T, store *outbox.InMemoryStore, id, tenant string) {
 		"occurred_at":     now.Format(time.RFC3339Nano),
 		"published_at":    now.Format(time.RFC3339Nano),
 		"traceparent":     "00-deadbeefdeadbeefdeadbeefdeadbeef-1111111122222222-01",
-		"source_project":  "chora-489812",
+		"source_project":  "chora-local",
 		"source_service":  "chora-observability",
 		"schema_version":  "1",
 	}
@@ -226,8 +226,8 @@ func TestDispatcher_DrainOnce_EnvelopeReconstructedForBus(t *testing.T) {
 	if env.EventID != "rE" {
 		t.Errorf("envelope.EventID = %q; want rE", env.EventID)
 	}
-	if env.SourceProject != "chora-489812" {
-		t.Errorf("envelope.SourceProject = %q; want chora-489812", env.SourceProject)
+	if env.SourceProject != "chora-local" {
+		t.Errorf("envelope.SourceProject = %q; want chora-local", env.SourceProject)
 	}
 	if env.SourceService != "chora-observability" {
 		t.Errorf("envelope.SourceService = %q; want chora-observability", env.SourceService)
@@ -361,7 +361,7 @@ func TestDispatcher_DrainOnce_EmptyStoredTraceparent_MintsValidTraceparent(t *te
 			"occurred_at":     now.Format(time.RFC3339Nano),
 			"published_at":    now.Format(time.RFC3339Nano),
 			// traceparent DELIBERATELY ABSENT.
-			"source_project": "chora-489812",
+			"source_project": "chora-local",
 			"source_service": "chora-observability",
 			"schema_version": "1",
 		},

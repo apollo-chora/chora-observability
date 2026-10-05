@@ -1,13 +1,12 @@
 // Package eval is the read-side domain for agent-eval evidence — the per-row
 // functional-autorater + adversarial red-team results emitted by the agent
-// CI/CD eval gate (ADR-169 / CHO-1674) and persisted to the BigQuery view
-// chora_observability_analytics.agent_eval_evidence.
+// CI/CD eval gate (ADR-169 / CHO-1674) and persisted to the analytics store.
 //
 // Observability owns this read because the evidence lives in the observability
 // analytics dataset (same class as agent_decision_log). The data is
 // PLATFORM-scoped eval telemetry — it carries NO tenant_id and is never
 // filtered by tenant (cross-DB / cross-context queries remain forbidden; this
-// is a single-context read over an observability-owned BigQuery view).
+// is a single-context read over an observability-owned store).
 //
 // Crew model (per the 2026-06-07 crew-view decision): a CREW RUN is keyed by
 // `candidate_label` (shared by all members of one gate run); a MEMBER identity

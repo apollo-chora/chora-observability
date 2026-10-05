@@ -201,7 +201,8 @@ func (h *Handler) getBudget(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// tracesExport POST /api/traces/export — Spanstore range export to Cloud Trace.
+// tracesExport POST /api/traces/export — Spanstore range export to the trace
+// store (Tempo).
 type tracesExportRequest struct {
 	Since string `json:"since"`
 	Until string `json:"until"`

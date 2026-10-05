@@ -15,54 +15,34 @@ services:
       - ./deploy/local/init-db.sh:/docker-entrypoint-initdb.d/10-chora-observability.sh:ro
       - ./migrations:/migrations:ro
 
-  pubsub:
-    image: gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
-    command:
-      - gcloud
-      - beta
-      - emulators
-      - pubsub
-      - start
-      - --project=chora-local
-      - --host-port=0.0.0.0:8085
+  # NATS JetStream event bus. Streams are provisioned out-of-band
+  # (scripts/nats-init.sh); the service refuses to start without NATS_URL.
+  nats:
+    image: nats:2-alpine
+    command: ["-js"]
     healthcheck:
-      test: ["CMD", "bash", "-c", "echo >/dev/tcp/127.0.0.1/8085"]
+      test: ["CMD-SHELL", "nats server check health || wget -qO- http://127.0.0.1:8222/healthz"]
       interval: 2s
       timeout: 3s
       retries: 30
-
-  pubsub-init:
-    image: gcr.io/google.com/cloudsdktool/google-cloud-cli:slim
-    depends_on:
-      pubsub:
-        condition: service_healthy
-    environment:
-      PUBSUB_EMULATOR_HOST: pubsub:8085
-      CLOUDSDK_CORE_PROJECT: chora-local
-    volumes:
-      - ./deploy/local/init-pubsub.sh:/init-pubsub.sh:ro
-    entrypoint: ["/bin/bash", "/init-pubsub.sh"]
-    restart: "no"
+    ports:
+      - "4222:4222"
 
   observability:
     image: ${CHORA_OBSERVABILITY_IMAGE:?set CHORA_OBSERVABILITY_IMAGE to a built chora-observability image}
     depends_on:
       postgres:
         condition: service_healthy
-      pubsub-init:
-        condition: service_completed_successfully
+      nats:
+        condition: service_healthy
     env_file:
       - .env
     environment:
       CHORA_STRICT_STARTUP: "true"
       CHORA_DB_DSN: postgres://chora:chora@postgres:5432/chora_observability?sslmode=disable
-      CHORA_PUBSUB_PROJECT: chora-local
-      GOOGLE_CLOUD_PROJECT: chora-local
+      NATS_URL: nats://nats:4222
       CHORA_SOURCE_PROJECT: chora-local
-      PUBSUB_EMULATOR_HOST: pubsub:8085
       CHORA_TRACING_ENABLED: "false"
-      CHORA_DECISION_BQ_ENABLED: "false"
-      CHORA_EVAL_EVIDENCE_BQ: ""
     ports:
       - "${PORT:-8080}:8080"
       - "${CHORA_GRPC_PORT:-9090}:9090"

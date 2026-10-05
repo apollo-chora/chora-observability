@@ -4,7 +4,7 @@
 -- Domain        : Observability (supporting/platform)
 -- Database      : chora_observability
 -- Date          : 2026-05-24
--- Architecture  : ADR-163 — Model Gateway on GKE asia-southeast1 (PROPOSED
+-- Architecture  : ADR-163 — Model Gateway (PROPOSED
 --                 2026-05-24). Phase 0 Sub-phase 0.2 of the M15 plan.
 -- Companion     : chora-contracts/proto/services/model_gateway_service.proto
 --

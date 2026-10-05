@@ -19,7 +19,7 @@
 // upstream subscriber's Ingest call must run AFTER ack/nack — see the
 // eventsubscriber package; HTTP routes here only serve query views.
 //
-// Cloud Trace span attributes: every handler emits `chora.tenant_id`,
+// Trace span attributes: every handler emits `chora.tenant_id`,
 // `chora.gcid` (when present), `chora.surface = O+`, and
 // `chora.domain = observability` so per-tenant attribution flows through
 // the OTLP pipeline (per agentic-resilience-d6 Pillar 4).

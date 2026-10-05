@@ -26,7 +26,7 @@
 # here needs the mirror edit in gemini.go.
 #
 # ⚠ KEY FORMAT = BARE MODEL ID, exactly as it appears on the wire.
-# This file was previously keyed "{provider}/{model_id}" (vertex_ai/...). No
+# This file was previously keyed "{provider}/{model_id}". No
 # producer has ever emitted that form — agents send their bare logical_model_id
 # — so every lookup missed in production and the O+ cost column was blank for
 # every model, for every decision, since this file was written. Only the test
@@ -34,9 +34,8 @@
 # what the wire carries; drive tests with the same.
 #
 # PROVENANCE: every Gemini rate below comes from the published Vertex AI price
-# list (https://cloud.google.com/vertex-ai/generative-ai/pricing), cross-checked
-# against the Billing Catalog API (service C7E2-9256-1C43 "Vertex AI").
-# chora-489812 has no billing export, so no invoice-level reconciliation exists.
+# list, cross-checked against the Billing Catalog API. No cloud billing export
+# is configured, so no invoice-level reconciliation exists.
 #
 # ⚠ WHERE THE TWO DISAGREE, THE PAGE WINS. The SKU catalogue keeps preview-era
 # SKUs beside GA ones and its names are grammatically ambiguous — "Gemini 2.5
@@ -203,12 +202,9 @@ prices:
     pass_through: true
 
 # Reconciliation policy:
-#   - Nightly Cloud Run Job recomputes cost_usd_at_time for any rows whose
+#   - Nightly job recomputes cost_usd_at_time for any rows whose
 #     pricing_version was retroactively replaced (e.g., by negotiated
 #     enterprise rates). Idempotent; safe to re-run.
-#   - BigQuery streaming partition is rewritten via MERGE on (ledger_id).
 reconciliation:
   cron: "0 3 * * *"          # daily 03:00 UTC
   lookback_days: 30
-  bigquery_dataset: chora_observability_analytics
-  bigquery_table: token_usage_ledger

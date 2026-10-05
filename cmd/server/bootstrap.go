@@ -7,13 +7,15 @@
 //
 // Environment contract:
 //
-//	CHORA_DB_DSN_SECRET_ID  — Secret Manager secret name resolving to a
+//	CHORA_DB_DSN_SECRET_ID  — secret name resolving to a
 //	                          chora_observability DSN (app_rw role). The
 //	                          producer-side outbox dispatcher REUSES this
 //	                          pool via stdlib.OpenDBFromPool — no separate
 //	                          CHORA_OUTBOX_DSN env var is needed.
 //	CHORA_DB_DSN            — direct DSN (dev override; takes priority).
-//	CHORA_DB_PROJECT        — GCP project for Secret Manager.
+//	CHORA_DB_PROJECT        — project stamp for the env-backed secret
+//	                          resolver's audit/logging path (default
+//	                          chora-local).
 //	CHORA_DB_REWRITE_FROM_PORT — bypass PgBouncer until the sidecar lands.
 //	CHORA_DB_REWRITE_TO_PORT
 //	NATS_URL                — NATS server URL for the JetStream event bus
@@ -22,7 +24,7 @@
 //	CHORA_OUTBOX_WORKER_ID  — worker ID stamped onto deadletter rows;
 //	                          defaults to HOSTNAME.
 //	CHORA_SOURCE_PROJECT    — source_project envelope stamp (default
-//	                          chora-489812).
+//	                          chora-local).
 package main
 
 import (
@@ -53,7 +55,7 @@ func bootstrapDBPool(ctx context.Context) (*pgxpool.Pool, func()) {
 
 	project := os.Getenv("CHORA_DB_PROJECT")
 	if project == "" {
-		project = "chora-489812"
+		project = "chora-local"
 	}
 
 	var fetcher cgcdb.SecretFetcher

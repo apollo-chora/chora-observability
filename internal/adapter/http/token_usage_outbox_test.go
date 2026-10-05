@@ -58,14 +58,14 @@ func newOutboxFixture(t *testing.T) (http.Handler, *outbox.InMemoryStore, ledger
 	store := outbox.NewInMemoryStore()
 	publisher := outbox.NewPublisher(outbox.PublisherConfig{
 		Store:         store,
-		SourceProject: "chora-489812",
+		SourceProject: "chora-local",
 		SourceService: "chora-observability",
 	})
 
 	hook := ledger.NewLedgerHook(ledger.LedgerHookConfig{
 		Ledger:        ledgerRepo,
 		Outbox:        publisher,
-		SourceProject: "chora-489812",
+		SourceProject: "chora-local",
 		SourceService: "chora-observability",
 	})
 
@@ -121,8 +121,8 @@ func TestPostTokenUsage_RecordsLedgerAndOutboxAtomically(t *testing.T) {
 	if got.GCID != "gcid-1" {
 		t.Errorf("gcid = %s; want gcid-1", got.GCID)
 	}
-	if got.Envelope["source_project"] != "chora-489812" {
-		t.Errorf("envelope.source_project = %s; want chora-489812", got.Envelope["source_project"])
+	if got.Envelope["source_project"] != "chora-local" {
+		t.Errorf("envelope.source_project = %s; want chora-local", got.Envelope["source_project"])
 	}
 	if got.Envelope["chora_imda_dimension"] != ledger.IMDADimensionAccountability {
 		t.Errorf("envelope.chora_imda_dimension = %s; want %s",
@@ -183,7 +183,7 @@ func TestPostTokenUsage_OutboxFailureAborts(t *testing.T) {
 	hook := ledger.NewLedgerHook(ledger.LedgerHookConfig{
 		Ledger:        ledgerRepo,
 		Outbox:        &failingOutbox{},
-		SourceProject: "chora-489812",
+		SourceProject: "chora-local",
 		SourceService: "chora-observability",
 	})
 	mux := httpadapter.NewRouter(ledgerRepo, decisionRepo, correlationRepo,

@@ -11,9 +11,7 @@ package events_test
 
 import (
 	"context"
-	"errors"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -45,69 +43,6 @@ func goodDecisionEvent() events.AgentDecisionLoggedEvent {
 		OutputSummary: "PASS — question is well-formed",
 		Traceparent:   "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01",
 		DecidedAt:     time.Date(2026, 5, 29, 9, 33, 55, 0, time.UTC),
-	}
-}
-
-// fakeDecisionBQSink records the decisions mirrored into BigQuery and can be
-// configured to fail, proving the best-effort contract.
-type fakeDecisionBQSink struct {
-	mu       sync.Mutex
-	inserted []*decision.Log
-	err      error
-}
-
-func (f *fakeDecisionBQSink) Insert(_ context.Context, l *decision.Log) error {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.inserted = append(f.inserted, l)
-	return f.err
-}
-
-func (f *fakeDecisionBQSink) count() int {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	return len(f.inserted)
-}
-
-func TestAgentDecisionConsumer_MirrorsToBigQuery(t *testing.T) {
-	t.Parallel()
-	repo := inmem.NewDecisionRepository()
-	sink := &fakeDecisionBQSink{}
-	cons := events.NewAgentDecisionConsumer(events.AgentDecisionConsumerConfig{
-		Repo:   repo,
-		Inbox:  idempotent.NewMemoryStore(),
-		BQSink: sink,
-	})
-
-	if err := cons.Handle(context.Background(), goodDecisionEvent()); err != nil {
-		t.Fatalf("Handle: %v", err)
-	}
-	if got := sink.count(); got != 1 {
-		t.Fatalf("BQ mirror inserted = %d; want 1", got)
-	}
-	if sink.inserted[0].Agid != "qgen_critic" {
-		t.Errorf("mirrored agid = %q; want qgen_critic", sink.inserted[0].Agid)
-	}
-}
-
-func TestAgentDecisionConsumer_BQSinkFailureDoesNotFailAck(t *testing.T) {
-	t.Parallel()
-	repo := inmem.NewDecisionRepository()
-	sink := &fakeDecisionBQSink{err: errors.New("bq down")}
-	cons := events.NewAgentDecisionConsumer(events.AgentDecisionConsumerConfig{
-		Repo:   repo,
-		Inbox:  idempotent.NewMemoryStore(),
-		BQSink: sink,
-	})
-
-	// Postgres is canonical: a BQ-mirror failure must NOT fail Handle (the ack),
-	// else a decision that IS persisted would needlessly DLQ.
-	if err := cons.Handle(context.Background(), goodDecisionEvent()); err != nil {
-		t.Fatalf("Handle errored on BQ-sink failure; want nil (best-effort): %v", err)
-	}
-	logs, _ := repo.List(context.Background(), "tenant-a", decision.ListFilter{})
-	if len(logs) != 1 {
-		t.Fatalf("decision must still persist to pg; logs = %d want 1", len(logs))
 	}
 }
 

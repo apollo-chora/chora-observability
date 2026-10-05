@@ -101,9 +101,9 @@ func TestEntry_Location_FromLiveEngine(t *testing.T) {
 
 func TestEntry_Location_FallbackToRegion(t *testing.T) {
 	t.Parallel()
-	e := agents.Entry{Region: "asia-southeast1"}
-	if got := e.Location(); got != "asia-southeast1" {
-		t.Errorf("Location = %q; want asia-southeast1 (fallback)", got)
+	e := agents.Entry{Region: "region-a"}
+	if got := e.Location(); got != "region-a" {
+		t.Errorf("Location = %q; want region-a (fallback)", got)
 	}
 }
 
@@ -162,11 +162,11 @@ func TestEntry_Project(t *testing.T) {
 	if got := (agents.Entry{LiveEngine: "locations/us-central1"}).Project(); got != "" {
 		t.Errorf("no projects/ marker = %q; want empty", got)
 	}
-	if got := (agents.Entry{LiveEngine: "projects/chora-489812"}).Project(); got != "chora-489812" {
-		t.Errorf("no trailing slash = %q; want chora-489812", got)
+	if got := (agents.Entry{LiveEngine: "projects/chora-local"}).Project(); got != "chora-local" {
+		t.Errorf("no trailing slash = %q; want chora-local", got)
 	}
-	if got := (agents.Entry{LiveEngine: "projects/chora-489812/locations/us-central1"}).Project(); got != "chora-489812" {
-		t.Errorf("Project = %q; want chora-489812", got)
+	if got := (agents.Entry{LiveEngine: "projects/chora-local/locations/us-central1"}).Project(); got != "chora-local" {
+		t.Errorf("Project = %q; want chora-local", got)
 	}
 }
 

@@ -34,8 +34,8 @@ type PublisherConfig struct {
 	// Store is the outbox table backend. Required.
 	Store Store
 
-	// SourceProject is the GCP project the service runs in (e.g.
-	// chora-489812). Defaults to "chora-489812".
+	// SourceProject is the source-project stamp on the envelope. Defaults to
+	// "chora-local".
 	SourceProject string
 
 	// SourceService is the publisher's service name. Defaults to
@@ -58,7 +58,7 @@ func NewPublisher(cfg PublisherConfig) *Publisher {
 		cfg.Now = func() time.Time { return time.Now().UTC() }
 	}
 	if cfg.SourceProject == "" {
-		cfg.SourceProject = "chora-489812"
+		cfg.SourceProject = "chora-local"
 	}
 	if cfg.SourceService == "" {
 		cfg.SourceService = "chora-observability"

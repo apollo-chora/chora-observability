@@ -68,14 +68,14 @@ func goodTokenUsageProto() *observabilityv1.TokenUsageRecorded {
 			PublishedAt:    timestamppb.New(at.Add(time.Second)),
 			Traceparent:    "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01",
 			Tracestate:     "vendor=chora",
-			SourceProject:  "chora-489812",
+			SourceProject:  "chora-local",
 			SourceService:  "chora-ai-kernel-orchestrator",
 			SchemaVersion:  1,
 		},
 		UsageId:      "usage-1",
 		TenantId:     "tenant-a",
 		Gcid:         "gcid-1",
-		ModelId:      "projects/chora-489812/locations/us-central1/reasoningEngines/123",
+		ModelId:      "projects/chora-local/locations/us-central1/reasoningEngines/123",
 		AgentRole:    "qgen_question",
 		InputTokens:  120,
 		OutputTokens: 75,
@@ -136,7 +136,7 @@ func TestBuildTokenUsageHandler_DecodesProtoEnvelopeAndPayload(t *testing.T) {
 	if e.Gcid != "gcid-1" {
 		t.Errorf("gcid = %q; want gcid-1", e.Gcid)
 	}
-	if e.ModelID != "projects/chora-489812/locations/us-central1/reasoningEngines/123" {
+	if e.ModelID != "projects/chora-local/locations/us-central1/reasoningEngines/123" {
 		t.Errorf("model_id = %q; want engine resource", e.ModelID)
 	}
 	if e.PromptTokens != 120 {

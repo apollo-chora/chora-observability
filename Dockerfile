@@ -11,7 +11,7 @@
 #     --build-arg SERVICE_NAME=chora-observability \
 #     --build-arg GIT_SHA=$(git rev-parse --short HEAD) \
 #     --build-arg BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) \
-#     -t asia-southeast1-docker.pkg.dev/chora-489812/chora-services/chora-observability:${TAG} \
+#     -t chora-observability:${TAG} \
 #     --push \
 #     .
 

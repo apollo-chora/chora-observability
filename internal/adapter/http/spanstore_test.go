@@ -23,7 +23,7 @@ import (
 type failingTraceExporter struct{}
 
 func (f *failingTraceExporter) Export(_ context.Context, _ httpadapter.TraceExportRequest) (httpadapter.TraceExportResponse, error) {
-	return httpadapter.TraceExportResponse{}, errors.New("cloud trace down")
+	return httpadapter.TraceExportResponse{}, errors.New("trace store down")
 }
 
 // spanstoreReq builds a GET with the observer role headers.

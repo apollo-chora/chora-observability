@@ -17,13 +17,13 @@
 //	GET    /api/correlations/{id}       — fetch (returns trace_id + spans)
 //	GET    /api/cost/cumulative         — Sequel-comic running ticker
 //	GET    /api/cost/by-act             — by-model breakdown (also per Sequel)
-//	POST   /api/traces/export           — Spanstore range export (Cloud Trace read)
+//	POST   /api/traces/export           — Spanstore range export (trace-store read)
 //	GET    /api/v1/observability/spans  — Spanstore query API for O+ Decision-Log Explorer
 //
 // Recursion warning: traces emitted by chora-observability for ITS OWN HTTP
 // requests do NOT generate self-referencing TokenUsageLedger entries. The
 // ledger is only written when callers (Model Gateway, etc.) explicitly POST
-// /api/token-usage; the OTLP self-tracing stays in Cloud Trace and never
+// /api/token-usage; the OTLP self-tracing stays in the trace store and never
 // loops back.
 package httpadapter
 
@@ -106,14 +106,14 @@ type Handler struct {
 	// plan atomic-napping-spring.md). When nil the route returns 503.
 	agentsRegistry *agents.Registry
 
-	// evalEvidence (optional) reads the BigQuery agent_eval_evidence view for
+	// evalEvidence (optional) reads the agent-eval evidence analytics store for
 	// the O+ Agent-Eval drill-down (IMDA D2 transparency). When nil the
 	// /api/v1/observability/eval-runs[...] routes return 503.
 	evalEvidence eval.Repository
 }
 
 // TraceExporter is the read-side Spanstore port (defined here as an interface
-// to avoid taking a hard dependency on the cloudtrace adapter package — the
+// to keep the http layer decoupled from the trace-store adapter — the
 // adapter satisfies this implicitly).
 type TraceExporter interface {
 	Export(ctx context.Context, req TraceExportRequest) (TraceExportResponse, error)
@@ -136,6 +136,23 @@ type TraceExportResponse struct {
 	Since    time.Time `json:"since"`
 	Until    time.Time `json:"until"`
 	QueuedAt time.Time `json:"queued_at"`
+
+	// Spans carries the spans read back from the trace store (Tempo). Empty
+	// when the store holds no spans for the request. SpanCount mirrors
+	// len(Spans) for a quick summary without decoding the array.
+	Spans     []TraceSpan `json:"spans,omitempty"`
+	SpanCount int         `json:"span_count,omitempty"`
+}
+
+// TraceSpan is one span in a trace-store read response.
+type TraceSpan struct {
+	TraceID      string            `json:"trace_id"`
+	SpanID       string            `json:"span_id"`
+	ParentSpanID string            `json:"parent_span_id,omitempty"`
+	Name         string            `json:"name"`
+	StartTime    time.Time         `json:"start_time"`
+	EndTime      time.Time         `json:"end_time"`
+	Attributes   map[string]string `json:"attributes,omitempty"`
 }
 
 // NewRouter wires the public mux with the minimum-required ports. Optional
@@ -182,12 +199,11 @@ func NewRouter(
 	mux.HandleFunc("/api/v1/observability/agent-decisions/count", h.agentDecisionsCount)
 
 	// Phase B O+ hydration (atomic-napping-spring.md) — crews + agents
-	// hierarchy with selective deep-links to Cloud Trace + Agent Engine.
-	// Source: agent_decision_log aggregated by agid (last-24h window) joined
-	// to chora-infra/agents-cli/registry.json static metadata. Per
-	// [[feedback-no-stubs-real-wiring]] returns invocations_24h=0 + null
+	// hierarchy. Source: agent_decision_log aggregated by agid (last-24h
+	// window) joined to chora-infra/agents-cli/registry.json static metadata.
+	// Per [[feedback-no-stubs-real-wiring]] returns invocations_24h=0 + null
 	// stats when no rows exist — NEVER fabricates.
-	ah := newAgentsHandler(decisions, h.agentsRegistry, projectFromEnv())
+	ah := newAgentsHandler(decisions, h.agentsRegistry)
 	mux.HandleFunc("/api/v1/observability/agents", ah.serveOPlusAgents)
 
 	// CHO-2364 (ADR-197 read slice) - per-agent prompt-evidence aggregation
@@ -202,9 +218,9 @@ func NewRouter(
 	mux.HandleFunc("/api/v1/observability/agent-prompts", pph.serveAgentPrompts)
 
 	// O+ Agent-Eval evidence drill-down (IMDA D2 transparency). Source: the
-	// BigQuery agent_eval_evidence view via eval.Repository. The exact path
-	// serves the crew-run index; the subtree serves a single run's per-row
-	// drill-down. Both 503 when the repo is not wired (WithEvalEvidenceRepo).
+	// analytics store via eval.Repository. The exact path serves the crew-run
+	// index; the subtree serves a single run's per-row drill-down. Both 503
+	// when the repo is not wired (WithEvalEvidenceRepo).
 	mux.HandleFunc(evalRunsPath, h.evalRunsList)
 	mux.HandleFunc(evalRunsPrefix, h.evalRunEvidence)
 
@@ -268,8 +284,8 @@ func WithAgentsRegistry(r *agents.Registry) Option {
 	return func(h *Handler) { h.agentsRegistry = r }
 }
 
-// WithEvalEvidenceRepo wires the BigQuery-backed agent-eval evidence reader
-// for GET /api/v1/observability/eval-runs[...] (the O+ Agent-Eval drill-down,
+// WithEvalEvidenceRepo wires the agent-eval evidence reader for
+// GET /api/v1/observability/eval-runs[...] (the O+ Agent-Eval drill-down,
 // IMDA D2). When unset those routes return 503.
 func WithEvalEvidenceRepo(r eval.Repository) Option {
 	return func(h *Handler) { h.evalEvidence = r }

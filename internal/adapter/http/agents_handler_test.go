@@ -71,7 +71,7 @@ func newAgentsRouter(t *testing.T, registry *agents.Registry, seedFn func(*inmem
 	if seedFn != nil {
 		seedFn(decisions)
 	}
-	// projectFromEnv() already defaults to chora-489812 when CHORA_PROJECT is
+	// projectFromEnv() already defaults to chora-local when CHORA_PROJECT is
 	// unset, so no t.Setenv here (which would conflict with t.Parallel).
 	opts := []httpadapter.Option{}
 	if registry != nil {
@@ -147,10 +147,9 @@ func TestAgents_EmptyClusterReturnsZeroStats(t *testing.T) {
 			CrewID   string `json:"crew_id"`
 			Region   string `json:"region"`
 			Agents   []struct {
-				AgentID               string `json:"agent_id"`
-				EngineID              string `json:"engine_id"`
-				CloudTraceTemplateURL string `json:"cloud_trace_template_url"`
-				Stats                 struct {
+				AgentID  string `json:"agent_id"`
+				EngineID string `json:"engine_id"`
+				Stats    struct {
 					Invocations24h int      `json:"invocations_24h"`
 					P95LatencyMs   *int     `json:"p95_latency_ms"`
 					RefusalRate    *float64 `json:"refusal_rate"`
@@ -179,82 +178,6 @@ func TestAgents_EmptyClusterReturnsZeroStats(t *testing.T) {
 					c.CrewName, a.AgentID, *a.Stats.RefusalRate)
 			}
 		}
-	}
-}
-
-// -----------------------------------------------------------------------------
-// Deep-link URLs — built from registry.json + project env
-// -----------------------------------------------------------------------------
-
-func TestAgents_DeepLinkURLsBuilt(t *testing.T) {
-	t.Parallel()
-	router := newAgentsRouter(t, testRegistry(), nil)
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/observability/agents", nil)
-	req.Header.Set("X-Tenant-Id", "tenant-1")
-	req.Header.Set("gcid", "user-1")
-	rr := httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
-	if rr.Code != http.StatusOK {
-		t.Fatalf("status = %d; want 200", rr.Code)
-	}
-	body := rr.Body.String()
-	// Cloud Trace URL must reference the project. With no seeded decisions,
-	// each tile falls back to the new Trace Explorer scoped to the project
-	// (there is no per-agent span attribute to filter on, and the legacy
-	// /traces/list?filter= is ignored by the new Explorer).
-	if !strings.Contains(body, "console.cloud.google.com/traces/explorer") {
-		t.Error("body missing Cloud Trace Explorer URL")
-	}
-	if !strings.Contains(body, "project=chora-489812") {
-		t.Error("body missing project query param")
-	}
-	if strings.Contains(body, "traces/list") || strings.Contains(body, "chora.agent_id") {
-		t.Error("fallback must not use the dead legacy /traces/list?filter=chora.agent_id format")
-	}
-	// Agent Engine is decommissioned (ADR-169) — the deep-link must be GONE.
-	if strings.Contains(body, "agent_engine_url") || strings.Contains(body, "agent-engines/") {
-		t.Error("agent_engine_url / agent-engines deep-link should be removed (ADR-169)")
-	}
-}
-
-// TestAgents_CloudTraceDeepLinksToLatestTrace — an agent with recent decisions
-// deep-links to its most-recent ACTUAL trace via the new Trace Explorer
-// ;traceId=<trace_id> matrix param (parsed from the row's W3C traceparent) —
-// NOT the dead legacy /traces/list?tid= that the new console silently ignores.
-func TestAgents_CloudTraceDeepLinksToLatestTrace(t *testing.T) {
-	t.Parallel()
-	traceID := strings.Repeat("e", 32)
-	seedFn := func(repo *inmem.DecisionRepository) {
-		d, err := decision.New(decision.NewParams{
-			TenantID:      "tenant-1",
-			Agid:          "qgen_critic",
-			DecisionType:  decision.TypeRespond,
-			Reason:        "ok",
-			RiskTier:      decision.TierLow,
-			CorrelationID: "corr-tid",
-			Traceparent:   "00-" + traceID + "-" + strings.Repeat("b", 16) + "-01",
-		})
-		if err != nil {
-			t.Fatalf("decision.New: %v", err)
-		}
-		if err := repo.Append(context.Background(), d); err != nil {
-			t.Fatalf("Append: %v", err)
-		}
-	}
-	router := newAgentsRouter(t, testRegistry(), seedFn)
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/observability/agents", nil)
-	req.Header.Set("X-Tenant-Id", "tenant-1")
-	req.Header.Set("gcid", "user-1")
-	rr := httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
-	if rr.Code != http.StatusOK {
-		t.Fatalf("status = %d; want 200", rr.Code)
-	}
-	rrBody := rr.Body.String()
-	spanID := strings.Repeat("b", 16) // parts[2] of the seeded traceparent
-	if !strings.Contains(rrBody, "traceId="+traceID) || !strings.Contains(rrBody, "spanId="+spanID) {
-		t.Errorf("qgen_critic Cloud Trace link should deep-link to its latest trace+span (traceId=%s;spanId=%s); body=%s",
-			traceID, spanID, rrBody)
 	}
 }
 
@@ -557,10 +480,9 @@ func seedQ(t *testing.T, repo *inmem.DecisionRepository, agid, qtype string) {
 }
 
 type tileView struct {
-	AgentID               string `json:"agent_id"`
-	Role                  string `json:"role"`
-	CloudTraceTemplateURL string `json:"cloud_trace_template_url"`
-	Stats                 struct {
+	AgentID string `json:"agent_id"`
+	Role    string `json:"role"`
+	Stats   struct {
 		Invocations24h int      `json:"invocations_24h"`
 		P95LatencyMs   *int     `json:"p95_latency_ms"`
 		RefusalRate    *float64 `json:"refusal_rate"`
@@ -705,35 +627,6 @@ func TestAgents_QgenTilesZeroWhenNoTraffic(t *testing.T) {
 	for _, want := range []string{"qgen-mcq", "qgen-OE", "qgen-critique"} {
 		if !ids[want] {
 			t.Errorf("missing qgen tile %q", want)
-		}
-	}
-}
-
-// TestAgents_QgenTileTraceLinkNoSyntheticIDLeak proves the synthesized MCQ/OE
-// tiles deep-link Cloud Trace to their OWN most-recent trace (via the new
-// ;traceId= matrix param, from the per-question-type traceparent) and that the
-// synthetic tile id ("qgen-mcq"/"qgen-OE") never leaks into the deep-link URL.
-func TestAgents_QgenTileTraceLinkNoSyntheticIDLeak(t *testing.T) {
-	t.Parallel()
-	seedFn := func(repo *inmem.DecisionRepository) {
-		seedQ(t, repo, "qgen_question", "mcq")
-		seedQ(t, repo, "qgen_question", "oe")
-	}
-	router := newAgentsRouter(t, nestedCrewRegistry(), seedFn)
-	tiles := crewTiles(t, doAgentsGET(t, router), "qgen")
-	traceID := strings.Repeat("a", 32) // seedQ's traceparent trace-id
-	for _, tl := range tiles {
-		if tl.AgentID != "qgen-mcq" && tl.AgentID != "qgen-OE" {
-			continue
-		}
-		if !strings.Contains(tl.CloudTraceTemplateURL, "traceId="+traceID) {
-			t.Errorf("%s should deep-link to its own trace via ;traceId=%s; got %s",
-				tl.AgentID, traceID, tl.CloudTraceTemplateURL)
-		}
-		if strings.Contains(tl.CloudTraceTemplateURL, "qgen-mcq") ||
-			strings.Contains(tl.CloudTraceTemplateURL, "qgen-OE") {
-			t.Errorf("%s trace link must NOT contain the synthetic tile id; got %s",
-				tl.AgentID, tl.CloudTraceTemplateURL)
 		}
 	}
 }

@@ -1,8 +1,8 @@
 // Package main is the chora-observability service entrypoint.
 //
 // Service: chora-observability (Observability supporting domain, surface O+)
-// Project: chora-489812 (Team 3 / Platform)
-// Domain DB: chora_observability (Cloud SQL — provisioned at M10)
+// Project: chora-local (Team 3 / Platform)
+// Domain DB: chora_observability (Postgres — provisioned at M10)
 // Topic prefix: chora.observability.* (canonical token_usage.recorded.v1)
 //
 // W2c (M12.3 Wave 2, 2026-05-12): wires the D6.2 producer-side
@@ -44,8 +44,6 @@ import (
 	"github.com/apollo-chora/chora-common/durabilityguard"
 	"github.com/apollo-chora/chora-common/eventbus"
 	"github.com/apollo-chora/chora-common/idempotent"
-	bq "github.com/apollo-chora/chora-observability/internal/adapter/bigquery"
-	"github.com/apollo-chora/chora-observability/internal/adapter/cloudtrace"
 	"github.com/apollo-chora/chora-observability/internal/adapter/events"
 	grpcadapter "github.com/apollo-chora/chora-observability/internal/adapter/grpc"
 	httpadapter "github.com/apollo-chora/chora-observability/internal/adapter/http"
@@ -53,6 +51,7 @@ import (
 	obsoutbox "github.com/apollo-chora/chora-observability/internal/adapter/outbox"
 	"github.com/apollo-chora/chora-observability/internal/adapter/pg"
 	"github.com/apollo-chora/chora-observability/internal/adapter/subscribers"
+	"github.com/apollo-chora/chora-observability/internal/adapter/tempo"
 	analyticsinmem "github.com/apollo-chora/chora-observability/internal/analytics/inmem"
 	"github.com/apollo-chora/chora-observability/internal/domain/agents"
 	"github.com/apollo-chora/chora-observability/internal/domain/companionsuspension"
@@ -63,32 +62,6 @@ import (
 	"github.com/apollo-chora/chora-observability/internal/domain/ritualaudit"
 	"github.com/apollo-chora/chora-observability/internal/observability"
 )
-
-// cloudtraceAdapter shims the cloudtrace.Client to the httpadapter.TraceExporter
-// interface — the http adapter doesn't import the cloudtrace pkg directly to
-// avoid a hard dependency on that adapter from the http layer.
-type cloudtraceAdapter struct{ client *cloudtrace.Client }
-
-func (a *cloudtraceAdapter) Export(ctx context.Context, req httpadapter.TraceExportRequest) (httpadapter.TraceExportResponse, error) {
-	res, err := a.client.Export(ctx, cloudtrace.ExportRequest{
-		TenantID: req.TenantID,
-		TraceID:  req.TraceID,
-		Since:    req.Since,
-		Until:    req.Until,
-	})
-	if err != nil {
-		return httpadapter.TraceExportResponse{}, err
-	}
-	return httpadapter.TraceExportResponse{
-		ExportID: res.ExportID,
-		Status:   res.Status,
-		Endpoint: res.Endpoint,
-		Mock:     res.Mock,
-		Since:    res.Since,
-		Until:    res.Until,
-		QueuedAt: res.QueuedAt,
-	}, nil
-}
 
 const (
 	serviceName = "chora-observability"
@@ -112,23 +85,22 @@ func main() {
 	defer stop()
 
 	log.Printf(
-		"observability: startup config strict=%t tracing=%t decision_bigquery=%t eval_bigquery=%t",
+		"observability: startup config strict=%t tracing=%t tempo_traces=%t",
 		strictStartup,
 		envEnabled("CHORA_TRACING_ENABLED", true),
-		envEnabled("CHORA_DECISION_BQ_ENABLED", true),
-		strings.TrimSpace(os.Getenv("CHORA_EVAL_EVIDENCE_BQ")) != "",
+		strings.TrimSpace(os.Getenv("TEMPO_QUERY_URL")) != "",
 	)
 
-	// OTLP wiring per Tier 3 D13 — direct to Cloud Trace in prod.
+	// OTLP wiring per Tier 3 D13 — to the trace store (Grafana Tempo).
 	//
 	// HHH-2 paydown (2026-05-14): the bespoke internal/observability
 	// adapter previously hand-rolled the OTLP TracerProvider and rejected
 	// the https://telemetry.googleapis.com:443 endpoint scheme — LL's
 	// Wave B audit (commit 533cfbda) flagged chora-observability as the
-	// 4th Cloud Trace "dark" service. Migrated to the canonical
+	// 4th trace-backend "dark" service. Migrated to the canonical
 	// commonobs.InitOTLPAsync via internal/observability.InitAsync. The
 	// async handle decouples OTLP init from pgx pool init so a slow
-	// Cloud Trace TLS handshake can no longer swallow the bootstrap
+	// trace-store TLS handshake can no longer swallow the bootstrap
 	// budget under PgBouncer 4-container cold-start. Mirrors chora-
 	// sharing (commit 3340c7c3) + chora-tenancy (commit c3205431).
 	if envEnabled("CHORA_TRACING_ENABLED", true) {
@@ -227,7 +199,7 @@ func main() {
 
 	outboxPublisher := obsoutbox.NewPublisher(obsoutbox.PublisherConfig{
 		Store:         outboxStore,
-		SourceProject: envOrDefault("CHORA_SOURCE_PROJECT", "chora-489812"),
+		SourceProject: envOrDefault("CHORA_SOURCE_PROJECT", "chora-local"),
 		SourceService: serviceName,
 	})
 
@@ -238,7 +210,7 @@ func main() {
 	// O+ / chora-governance surface sees the dropped event explicitly.
 	sinkAlert := obsoutbox.NewPublisherAlertSink(obsoutbox.PublisherAlertSinkConfig{
 		Bus:           bus,
-		SourceProject: envOrDefault("CHORA_SOURCE_PROJECT", "chora-489812"),
+		SourceProject: envOrDefault("CHORA_SOURCE_PROJECT", "chora-local"),
 		SourceService: serviceName,
 	})
 
@@ -307,7 +279,7 @@ func main() {
 	ledgerHook := ledger.NewLedgerHook(ledger.LedgerHookConfig{
 		Ledger:        ledgerRepo,
 		Outbox:        outboxPublisher,
-		SourceProject: envOrDefault("CHORA_SOURCE_PROJECT", "chora-489812"),
+		SourceProject: envOrDefault("CHORA_SOURCE_PROJECT", "chora-local"),
 		SourceService: serviceName,
 	})
 
@@ -318,7 +290,7 @@ func main() {
 	}
 
 	// ----------------------------------------------------------------------
-	// AgentDecisionLog consumer (ADR-167 read-model hydration, 2026-05-29).
+	// AgentDecisionLog consumer (ADR-167 read-model hydration).
 	//
 	// Binds events.AgentDecisionConsumer to a JetStream consume-loop goroutine
 	// on the canonical subscription
@@ -329,34 +301,13 @@ func main() {
 	//
 	// Producer: AI Kernel orchestrator + content-agent crews (qgen_question /
 	// qgen_critic emit one decision per generate / critique hop).
+	//
+	// Postgres (agent_decision_log) is the canonical and only store; the
+	// consumer performs no analytics mirror.
 	// ----------------------------------------------------------------------
-	// BigQuery mirror sink (best-effort) — streams each persisted decision into
-	// chora_observability_analytics.agent_decision_log so the BQ mirror is no
-	// longer empty (closing the "View in BigQuery" / auditor-query gap). Disabled
-	// (nil) when no BQ project resolves or the client fails to init; Postgres is
-	// the canonical store and is unaffected either way. Env config mirrors the
-	// eval-evidence client.
-	var decisionBQSink events.DecisionBQSink
-	if envEnabled("CHORA_DECISION_BQ_ENABLED", true) {
-		bqProject := envOrDefault("CHORA_DECISION_BQ_PROJECT",
-			envOrDefault("CHORA_PROJECT", envOrDefault("GOOGLE_CLOUD_PROJECT", "chora-489812")))
-		bqDataset := envOrDefault("CHORA_DECISION_BQ_DATASET", "chora_observability_analytics")
-		bqTable := envOrDefault("CHORA_DECISION_BQ_TABLE", "agent_decision_log")
-		bqLocation := envOrDefault("CHORA_DECISION_BQ_LOCATION", "asia-southeast1")
-		if sink, err := bq.NewDecisionSink(ctx, bqProject, bqDataset, bqTable, bqLocation); err != nil {
-			log.Printf("observability: decision BQ mirror disabled (%v) — Postgres unaffected", err)
-		} else {
-			decisionBQSink = sink
-			defer func() { _ = sink.Close() }()
-			log.Printf("observability: decision BQ mirror enabled (%s.%s.%s)", bqProject, bqDataset, bqTable)
-		}
-	} else {
-		log.Printf("observability: decision BQ mirror disabled by CHORA_DECISION_BQ_ENABLED")
-	}
 	agentDecisionConsumer := events.NewAgentDecisionConsumer(events.AgentDecisionConsumerConfig{
-		Repo:   decisionRepo,
-		Inbox:  inbox,
-		BQSink: decisionBQSink,
+		Repo:  decisionRepo,
+		Inbox: inbox,
 	})
 	agentDecisionSubscription := envOrDefault(
 		"CHORA_AGENT_DECISION_SUBSCRIPTION", DefaultAgentDecisionSubscription,
@@ -467,7 +418,7 @@ func main() {
 	// restart. The durable outbox-backed publisher is now the prod sink, and the
 	// in-memory publisher REFUSES to wire when a DB pool is up.
 	evidencePublisher, evErr := selectEvidencePublisher(outboxStore, pool != nil, evidencePublisherConfig{
-		SourceProject: envOrDefault("CHORA_SOURCE_PROJECT", "chora-489812"),
+		SourceProject: envOrDefault("CHORA_SOURCE_PROJECT", "chora-local"),
 		SourceService: serviceName,
 	})
 	if evErr != nil {
@@ -674,39 +625,23 @@ func main() {
 		opts = append(opts, httpadapter.WithAgentsRegistry(registry))
 	}
 
-	// O+ Agent-Eval evidence drill-down (IMDA D2 transparency) — a real
-	// BigQuery read over chora_observability_analytics.agent_eval_evidence.
-	// Enabled when CHORA_EVAL_EVIDENCE_BQ is set (the deployment sets it);
-	// absent in local dev so /api/v1/observability/eval-runs 503s rather than
-	// dialing BigQuery without ADC. Project/dataset/view/location are env-
-	// sourced (secrets-and-env; no inline config) with chora-489812 defaults.
-	if os.Getenv("CHORA_EVAL_EVIDENCE_BQ") != "" {
-		evalProject := envOrDefault("CHORA_EVAL_BQ_PROJECT",
-			envOrDefault("CHORA_PROJECT", envOrDefault("GOOGLE_CLOUD_PROJECT", "chora-489812")))
-		evalDataset := envOrDefault("CHORA_EVAL_BQ_DATASET", "chora_observability_analytics")
-		evalView := envOrDefault("CHORA_EVAL_BQ_VIEW", "agent_eval_evidence")
-		evalLocation := envOrDefault("CHORA_EVAL_BQ_LOCATION", "asia-southeast1")
-		evalRepo, err := bq.NewEvidenceClient(ctx, evalProject, evalDataset, evalView, evalLocation)
-		if err != nil {
-			log.Printf("observability: eval-evidence BigQuery client init failed (non-fatal; /eval-runs will 503): %v", err)
-		} else {
-			opts = append(opts, httpadapter.WithEvalEvidenceRepo(evalRepo))
-			log.Printf("observability: eval-evidence BigQuery reader wired (project=%s dataset=%s view=%s loc=%s)",
-				evalProject, evalDataset, evalView, evalLocation)
-		}
-	}
+	// O+ Agent-Eval evidence drill-down (IMDA D2 transparency). The evidence
+	// source is an analytics store; no eval.Repository is wired here, so the
+	// /api/v1/observability/eval-runs[...] routes report 503 honestly
+	// ("agent-eval evidence repository not wired") rather than fabricating an
+	// empty-but-200 response.
 
-	// Optional Cloud Trace read client (Spanstore query API).
-	if endpoint := os.Getenv("CLOUDTRACE_OTLP_READ_ENDPOINT"); endpoint != "" {
-		mock := os.Getenv("CLOUDTRACE_MOCK") == "1"
-		ctClient, err := cloudtrace.NewClient(cloudtrace.Config{
-			Endpoint: endpoint,
-			Mock:     mock,
-		})
+	// Optional Tempo trace-read client (Spanstore query API). Wired when
+	// TEMPO_QUERY_URL is set (the local stack runs Grafana Tempo; query API on
+	// tempo:3200). When unset the /api/traces/export + /api/v1/observability/
+	// spans routes 503 ("trace exporter not configured").
+	if queryURL := strings.TrimSpace(os.Getenv("TEMPO_QUERY_URL")); queryURL != "" {
+		tempoClient, err := tempo.NewClient(tempo.Config{QueryURL: queryURL})
 		if err != nil {
-			log.Printf("cloudtrace client init failed (non-fatal): %v", err)
+			log.Printf("observability: tempo client init failed (non-fatal; trace routes will 503): %v", err)
 		} else {
-			opts = append(opts, httpadapter.WithTraceExporter(&cloudtraceAdapter{client: ctClient}))
+			opts = append(opts, httpadapter.WithTraceExporter(tempoClient))
+			log.Printf("observability: tempo trace reader wired (query_url=%s)", queryURL)
 		}
 	}
 

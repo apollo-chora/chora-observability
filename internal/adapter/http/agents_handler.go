@@ -10,7 +10,6 @@
 //	      "agents": [
 //	        { "agent_id": "qgen_question", "role": "MCQ generator",
 //	          "engine_id": "8635637442075951104",
-//	          "cloud_trace_template_url": "...",
 //	          "stats": { "invocations_24h": 0, "p95_latency_ms": null,
 //	                     "refusal_rate": null } },
 //	        ...
@@ -30,17 +29,13 @@
 // stats payload reports invocations_24h=0 + null for the percentile / rate
 // fields. The FE renders this as "no recent activity" — NOT a mock banner.
 //
-// Per anchoring decision #2 (selective deep-link): each agent row carries a
-// `cloud_trace_template_url` so the FE can render a "View in Cloud Trace ↗"
-// button without O+ rendering raw spans. The link prefers the agent's actual
-// latest trace (?tid=) and falls back to a chora.agent_id label filter.
-// (The Vertex AI Agent Engine deep-link was removed — decommissioned per
-// ADR-169.)
+// The response carries no per-agent trace deep-link: the local stack reads
+// traces from Grafana Tempo via the Spanstore query API
+// (/api/v1/observability/spans), not from a console link.
 package httpadapter
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -62,13 +57,12 @@ const defaultAgentsWindowDays = 90
 type agentsHandler struct {
 	decisions decision.Repository
 	registry  *agents.Registry
-	project   string        // GCP project for the Cloud Trace deep-links
 	window    time.Duration // aggregation window (default ~90d / last quarter)
 }
 
 // newAgentsHandler constructs the handler.
-func newAgentsHandler(d decision.Repository, r *agents.Registry, project string) *agentsHandler {
-	return &agentsHandler{decisions: d, registry: r, project: project, window: agentsWindow()}
+func newAgentsHandler(d decision.Repository, r *agents.Registry) *agentsHandler {
+	return &agentsHandler{decisions: d, registry: r, window: agentsWindow()}
 }
 
 // agentsWindow returns the aggregation window: CHORA_AGENTS_WINDOW_DAYS days
@@ -106,11 +100,10 @@ type crewView struct {
 }
 
 type agentView struct {
-	AgentID               string     `json:"agent_id"`
-	Role                  string     `json:"role,omitempty"`
-	EngineID              string     `json:"engine_id,omitempty"`
-	CloudTraceTemplateURL string     `json:"cloud_trace_template_url,omitempty"`
-	Stats                 agentStats `json:"stats"`
+	AgentID  string     `json:"agent_id"`
+	Role     string     `json:"role,omitempty"`
+	EngineID string     `json:"engine_id,omitempty"`
+	Stats    agentStats `json:"stats"`
 }
 
 type agentStats struct {
@@ -170,15 +163,9 @@ type perAgentStats struct {
 	invocations int
 	refusals    int
 	latencies   []int
-	// latestTraceparent is the W3C traceparent of the agent's most-recent
-	// decision row — the source for the per-agent Cloud Trace deep-link
-	// (lands on the agent's actual latest trace / parent span).
-	latestTraceparent string
 }
 
-// add folds one decision row into the running aggregate. List returns rows
-// recorded_at ASC, so calling add in iteration order leaves latestTraceparent
-// pointing at the agent's most-recent trace.
+// add folds one decision row into the running aggregate.
 func (s *perAgentStats) add(l *decision.Log) {
 	s.invocations++
 	if l.DecisionType == decision.TypeRefuse {
@@ -186,9 +173,6 @@ func (s *perAgentStats) add(l *decision.Log) {
 	}
 	if l.Reasoning != nil && l.Reasoning.LatencyMs > 0 {
 		s.latencies = append(s.latencies, l.Reasoning.LatencyMs)
-	}
-	if l.Traceparent != "" {
-		s.latestTraceparent = l.Traceparent
 	}
 }
 
@@ -310,10 +294,6 @@ func (h *agentsHandler) buildCrewViews(bundle *statsBundle) []crewView {
 //   - qgen-mcq      — qgen_question decisions tagged question_type="mcq"
 //   - qgen-OE       — qgen_question decisions tagged question_type="oe"
 //   - qgen-critique — all qgen_critic decisions (summed across question_type)
-//
-// Each tile deep-links Cloud Trace to ITS OWN most-recent actual trace — the
-// mcq / OE tiles use their per-question-type traceparent (so qgen-mcq lands on
-// an mcq generation, qgen-OE on an OE one); see cloudTraceLink.
 func (h *agentsHandler) buildQgenCrew(e agents.Entry, bundle *statsBundle) crewView {
 	cv := crewView{
 		CrewName: e.Name,
@@ -354,15 +334,12 @@ func (h *agentsHandler) buildAgentView(agentID string, e agents.Entry, s *perAge
 }
 
 // buildTileView renders one tile. tileID is the display/agent_id the FE shows
-// (may be synthetic, e.g. "qgen-mcq"). The Cloud Trace deep-link is derived
-// purely from the tile's own stats (its most-recent traceparent) — see
-// cloudTraceLink — so the synthetic id never leaks into the link.
+// (may be synthetic, e.g. "qgen-mcq").
 func (h *agentsHandler) buildTileView(tileID, role string, e agents.Entry, s *perAgentStats) agentView {
 	av := agentView{
-		AgentID:               tileID,
-		Role:                  role,
-		EngineID:              e.EngineID(),
-		CloudTraceTemplateURL: h.cloudTraceLink(s),
+		AgentID:  tileID,
+		Role:     role,
+		EngineID: e.EngineID(),
 	}
 	if s == nil {
 		// No traffic in the window — zero invocations + null stats. NEVER
@@ -391,25 +368,6 @@ func (h *agentsHandler) buildTileView(tileID, role string, e agents.Entry, s *pe
 // only" (CLAUDE.md), framework=langgraph uniquely identifies these.
 func isOrchestrator(e agents.Entry) bool {
 	return strings.EqualFold(e.Framework, "langgraph")
-}
-
-// cloudTraceLink returns the per-tile Cloud Trace deep-link. When the tile has
-// a recent decision row it deep-links to that ACTUAL trace via the new Trace
-// Explorer ;traceId= matrix param and — when the row's W3C traceparent carries
-// a span id — pins ;spanId= so the link lands on THAT agent's own span. The
-// producer (chora-ai-kernel-orchestrator) stamps a per-agent marker span
-// (agent.<agid>, attribute chora.agent_id) into each decision's traceparent, so
-// span ids differ per agent within the shared crew trace. When the agent has no
-// recent decision row it falls back to the Trace Explorer scoped to the project
-// (the new Explorer ignores the legacy ?filter=; there is no usable per-agent
-// fallback filter).
-func (h *agentsHandler) cloudTraceLink(s *perAgentStats) string {
-	if s != nil {
-		if tid := traceIDFromTraceparent(s.latestTraceparent); tid != "" {
-			return cloudTraceTraceURL(h.project, tid, spanIDFromTraceparent(s.latestTraceparent))
-		}
-	}
-	return cloudTraceExplorerURL(h.project)
 }
 
 // agentRoleFromEntry returns a short human-readable role for the FE column.
@@ -445,82 +403,6 @@ func agentRoleFromEntry(agentID string, e agents.Entry) string {
 	}
 }
 
-// cloudTraceTraceURL deep-links to a SPECIFIC trace in the new Cloud Trace
-// Explorer via the ;traceId= matrix param (verified 2026-06-09: it opens the
-// trace's waterfall on cold load; the console auto-adds the default ;query= +
-// ;duration=PT1H). When spanID is non-empty it additionally pins ;spanId= so
-// the link selects that agent's own span within the trace (verified: clicking
-// a span adds ;spanId=). The legacy /traces/list?tid= is DEAD — the console
-// redirects it to /traces/explorer and silently drops the param.
-func cloudTraceTraceURL(project, traceID, spanID string) string {
-	if project == "" || traceID == "" {
-		return ""
-	}
-	if spanID != "" {
-		return fmt.Sprintf(
-			"https://console.cloud.google.com/traces/explorer;traceId=%s;spanId=%s?project=%s",
-			traceID, spanID, project,
-		)
-	}
-	return fmt.Sprintf(
-		"https://console.cloud.google.com/traces/explorer;traceId=%s?project=%s",
-		traceID, project,
-	)
-}
-
-// cloudTraceExplorerURL is the no-recent-trace fallback: it opens the Cloud
-// Trace Explorer scoped to the project. There is no usable per-agent span
-// attribute to filter on (see cloudTraceLink), and the new Explorer ignores
-// the legacy ?filter= param, so this intentionally does not attempt a per-agent
-// filter — tiles with a recent trace deep-link via cloudTraceTraceURL instead.
-func cloudTraceExplorerURL(project string) string {
-	if project == "" {
-		return ""
-	}
-	return fmt.Sprintf("https://console.cloud.google.com/traces/explorer?project=%s", project)
-}
-
-// traceIDFromTraceparent extracts the 32-hex trace-id from a W3C traceparent
-// ("version-traceid-spanid-flags", e.g. 00-<32hex>-<16hex>-01). Returns ""
-// when the value is absent or malformed.
-func traceIDFromTraceparent(tp string) string {
-	parts := strings.Split(tp, "-")
-	if len(parts) < 3 {
-		return ""
-	}
-	tid := parts[1]
-	if len(tid) != 32 {
-		return ""
-	}
-	for _, c := range tid {
-		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
-			return ""
-		}
-	}
-	return tid
-}
-
-// spanIDFromTraceparent extracts the 16-hex span-id (parts[2]) from a W3C
-// traceparent ("version-traceid-spanid-flags"). Returns "" when absent or
-// malformed. Used to pin ;spanId= so the Cloud Trace deep-link selects the
-// agent's own per-agent span within the shared crew trace.
-func spanIDFromTraceparent(tp string) string {
-	parts := strings.Split(tp, "-")
-	if len(parts) < 3 {
-		return ""
-	}
-	sid := parts[2]
-	if len(sid) != 16 {
-		return ""
-	}
-	for _, c := range sid {
-		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
-			return ""
-		}
-	}
-	return sid
-}
-
 // percentile returns the p-th percentile (0-100) of latencies via the
 // nearest-rank method. Returns 0 for empty input.
 func percentile(latencies []int, p int) int {
@@ -537,14 +419,11 @@ func percentile(latencies []int, p int) int {
 	return sorted[rank]
 }
 
-// projectFromEnv returns the canonical project for the deep-link URLs.
-// Falls back to chora-489812 per ADR-144 when CHORA_PROJECT is unset.
+// projectFromEnv returns the canonical source-project stamp for the index
+// response. Falls back to chora-local when CHORA_PROJECT is unset.
 func projectFromEnv() string {
 	if p := os.Getenv("CHORA_PROJECT"); p != "" {
 		return p
 	}
-	if p := os.Getenv("GOOGLE_CLOUD_PROJECT"); p != "" {
-		return p
-	}
-	return "chora-489812"
+	return "chora-local"
 }

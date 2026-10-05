@@ -46,10 +46,8 @@ type Price struct {
 
 // Reconciliation captures the nightly job parameters.
 type Reconciliation struct {
-	Cron            string `yaml:"cron"`
-	LookbackDays    int    `yaml:"lookback_days"`
-	BigQueryDataset string `yaml:"bigquery_dataset"`
-	BigQueryTable   string `yaml:"bigquery_table"`
+	Cron         string `yaml:"cron"`
+	LookbackDays int    `yaml:"lookback_days"`
 }
 
 // LoadFile reads + parses the YAML at path.

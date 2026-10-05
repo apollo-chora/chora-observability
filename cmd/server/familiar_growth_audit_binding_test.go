@@ -78,7 +78,7 @@ func TestFamiliarGrowthAuditBindings_AllPullShaped(t *testing.T) {
 
 // TestFamiliarGrowthAuditBindings_SubscriptionNamesMatchDeployedReality pins
 // the canonical subscription short-names against the names that actually exist
-// in chora-489812 (verified 2026-07-17 via `gcloud pubsub subscriptions list`).
+// in the NATS deployment (verified 2026-07-17).
 // A typo here is a silently-inert consumer.
 func TestFamiliarGrowthAuditBindings_SubscriptionNamesMatchDeployedReality(t *testing.T) {
 	deployed := map[string]string{

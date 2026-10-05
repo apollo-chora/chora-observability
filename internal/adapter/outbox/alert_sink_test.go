@@ -163,7 +163,7 @@ func TestPublisherAlertSink_PublishesValidEnvelopeAndPayload(t *testing.T) {
 	bus := &recordingPublishBus{}
 	sink := outbox.NewPublisherAlertSink(outbox.PublisherAlertSinkConfig{
 		Bus:           bus,
-		SourceProject: "chora-489812",
+		SourceProject: "chora-local",
 		SourceService: "chora-observability",
 		Now:           func() time.Time { return time.Date(2026, 6, 1, 4, 0, 0, 0, time.UTC) },
 	})

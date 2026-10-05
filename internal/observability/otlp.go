@@ -1,16 +1,15 @@
-// Package observability wires traces direct to Cloud Trace per Tier 3 D12.
-// NO Langfuse, NO OTel Collector.
+// Package observability wires traces to the trace store (Grafana Tempo via
+// OTLP) per Tier 3 D12. NO Langfuse, NO OTel Collector.
 //
 // HHH-2 paydown (2026-05-14): the previous bespoke wiring in this file
-// hand-rolled the entire OTLP TracerProvider + exporter selection on top
-// of cloudtrace.New / stdouttrace.New. LL's Wave B audit (commit
-// 533cfbda) flagged chora-observability as the 4th Cloud Trace "dark"
-// service — the bespoke adapter rejected the `https://telemetry.googleapis.com:443`
-// endpoint scheme (the canonical lib accepts the scheme as a log-only
-// hint and reaches Cloud Trace via ADC). Wave B's follow-on F-shim swept
-// 11 services but skipped chora-observability intentionally because it's
-// the observability service ITSELF — special-cased to its own (older)
-// OTLP wiring path.
+// hand-rolled the entire OTLP TracerProvider + exporter selection. LL's
+// Wave B audit (commit 533cfbda) flagged chora-observability as the 4th
+// trace-backend "dark" service — the bespoke adapter rejected the
+// `https://telemetry.googleapis.com:443` endpoint scheme (the canonical lib
+// accepts the scheme as a log-only hint and reaches the trace store).
+// Wave B's follow-on F-shim swept 11 services but skipped
+// chora-observability intentionally because it's the observability service
+// ITSELF — special-cased to its own (older) OTLP wiring path.
 //
 // This file now thinly delegates to chora-common/observability
 // (canonical lib) so the bespoke divergence closes for good. Backward-
@@ -26,7 +25,7 @@
 //
 //   - InitAsync(ctx) — new entry point returning *bootstrap.OTLPHandle
 //     per chora-sharing / chora-tenancy reference migration. Decouples
-//     OTLP init from pgx-pool init so a slow Cloud Trace TLS handshake
+//     OTLP init from pgx-pool init so a slow trace-store TLS handshake
 //     can no longer swallow the pod's bootstrap budget under PgBouncer
 //     4-container cold-start. See chora-common/bootstrap/README.md.
 //
@@ -60,7 +59,7 @@ const ServiceName = "chora-observability"
 
 // ServiceVersion follows semver per OpenInference convention. Injected at
 // build time when set via -ldflags "-X ...ServiceVersion=..."; empty
-// default is acceptable (Cloud Trace will record service.version="" which
+// default is acceptable (the trace store will record service.version="" which
 // is non-fatal for span ingest).
 const ServiceVersion = "0.1.0"
 
@@ -70,11 +69,11 @@ const ServiceVersion = "0.1.0"
 // This is the LEGACY sync entry point preserved for backward compat with
 // `cmd/server/main.go` and any test that wires the trace provider in-
 // process. Internally it now drives commonobs.InitOTLPAsync + WaitContext
-// so the lib's TLS+ADC handling sweeps in; the only difference vs the
+// so the lib's TLS+credential handling sweeps in; the only difference vs the
 // async path is that this blocks until init settles.
 //
 // Service name is fixed to "chora-observability". Dev fallback path (no
-// GOOGLE_CLOUD_PROJECT / OTEL_EXPORTER_OTLP_ENDPOINT / ADC) is provided
+// OTEL_EXPORTER_OTLP_ENDPOINT / credentials) is provided
 // by the canonical lib's `isDevExport` heuristic — spans route to
 // stdouttrace.
 //

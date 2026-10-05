@@ -64,7 +64,7 @@ type familiarGrowthAuditBinding struct {
 // familiarGrowthAuditBindings is the canonical ADR-149 ingress declaration.
 //
 // Subscription names are pinned against deployed reality (verified
-// 2026-07-17 in chora-489812: all 7 exist, all have an empty
+// 2026-07-17: all 7 exist, all have an empty
 // pushConfig.pushEndpoint, all carry a dead_letter_policy with
 // maxDeliveryAttempts=5 onto chora.dlq.<topic>, and each DLQ topic has a .pull
 // drain subscription). Under NATS the dead-letter subject is

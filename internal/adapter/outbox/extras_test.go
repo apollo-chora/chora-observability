@@ -158,8 +158,8 @@ func TestDispatcher_DrainOnce_EnvelopeReconstructEmpty_DefaultsApply(t *testing.
 		t.Errorf("default SourceService = %q; want chora-observability",
 			bus.calls[0].Envelope.SourceService)
 	}
-	if bus.calls[0].Envelope.SourceProject != "chora-489812" {
-		t.Errorf("default SourceProject = %q; want chora-489812",
+	if bus.calls[0].Envelope.SourceProject != "chora-local" {
+		t.Errorf("default SourceProject = %q; want chora-local",
 			bus.calls[0].Envelope.SourceProject)
 	}
 	if bus.calls[0].Envelope.SchemaVersion != 1 {

@@ -13,8 +13,8 @@
 --   - budgets (per-tenant SGD cap + threshold crossings)
 --
 -- Cost stored as int64 micros (1e-6 USD/SGD) — never float64. Trace context
--- (W3C traceparent / tracestate) recorded alongside every entry for Cloud Trace
--- correlation per ai-observability-cloud-trace skill.
+-- (W3C traceparent / tracestate) recorded alongside every entry for
+-- distributed-tracing correlation.
 -- =============================================================================
 
 BEGIN;
@@ -33,7 +33,7 @@ CREATE TYPE risk_tier     AS ENUM ('low', 'medium', 'high', 'critical');
 --
 -- Each entry = one LLM call (or batch). Stored as int64 micros to avoid
 -- float drift. Outbox publishes chora.ai_kernel.token-usage.recorded.v1 on
--- each insert; BigQuery streaming exports nightly for billing pre-aggregation.
+-- each insert.
 -- -----------------------------------------------------------------------------
 CREATE TABLE token_usage_ledger (
     ledger_id            UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -162,9 +162,9 @@ CREATE POLICY tenant_isolation ON budgets
 -- -----------------------------------------------------------------------------
 -- traces_correlation — minimal trace_id ↔ subject correlation index
 --
--- We do NOT mirror full Cloud Trace data here (Cloud Trace is canonical).
+-- We do NOT mirror full trace data here (the trace store is canonical).
 -- This index lets us correlate a trace_id back to its tenant/gcid/agid for
--- replay and incident-response queries without round-tripping to Cloud Trace.
+-- replay and incident-response queries without round-tripping to the trace store.
 -- -----------------------------------------------------------------------------
 CREATE TABLE traces_correlation (
     trace_id            CHAR(32)     PRIMARY KEY,

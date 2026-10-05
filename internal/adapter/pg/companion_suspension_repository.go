@@ -59,11 +59,11 @@ const (
 )
 
 // Was a hardcoded literal until 2026-09-02 (CHO-2419). No manifest could reach
-// it, so a second org stamped every event with chora-489812 and any consumer
+// it, so a second org stamped every event with a stale project and any consumer
 // filtering on source_project would have been filtering on a lie.
 // CHORA_SOURCE_PROJECT is now set on every event-emitting service; the literal
 // stays as the fallback so this estate is provably unchanged.
-var companionSuspensionSourceProject = env.GetOrDefault("CHORA_SOURCE_PROJECT", "chora-489812")
+var companionSuspensionSourceProject = env.GetOrDefault("CHORA_SOURCE_PROJECT", "chora-local")
 
 // CompanionSuspensionRepoOptions injects the clock and the id minter (tests pin
 // both; production leaves them nil).

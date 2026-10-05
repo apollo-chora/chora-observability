@@ -3,7 +3,7 @@
 //
 // Per [[ai-cost-tracking]] this is the SUBSCRIBER half of the dual-axis
 // cost-tracking pattern — the canonical billing-grade ledger writes that
-// BigQuery streaming + pre-aggregations downstream consume. The chora-
+// downstream pre-aggregations consume. The chora-
 // observability service OWNS the ledger aggregate; the chora-ai-kernel-
 // orchestrator is one of the PRODUCERS (qgen 2-agent crew emits one row
 // per generate / critique trace hop).
@@ -61,7 +61,7 @@ type TokenUsageRecordedEvent struct {
 	EventID      string    // envelope.event_id (UUIDv7 — dedupe key)
 	TenantID     string    // envelope.tenant_id
 	GCID         string    // envelope.gcid (may carry AGID — disambiguate via chora_identity)
-	ModelID      string    // e.g. "vertex_ai/gemini-2.5-flash", "vertex_ai/gemini-2.5-pro"
+	ModelID      string    // e.g. "gemini-2.5-flash", "gemini-2.5-pro"
 	AgentRole    string    // crew role — "qgen_question" | "qgen_critic" | "" for direct calls
 	InputTokens  int64     // prompt tokens
 	OutputTokens int64     // completion tokens

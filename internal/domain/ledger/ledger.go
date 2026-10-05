@@ -6,7 +6,7 @@
 // billing-grade numbers per Tier 3 D12 + ai-cost-tracking skill.
 //
 // W3C trace context is stored alongside each entry so cost can be correlated
-// back to a Cloud Trace span.
+// back to a trace span.
 //
 // Recursion warning: chora-observability emits OTLP traces for ITS OWN
 // requests. Those self-emitted traces do NOT generate a TokenUsageLedger

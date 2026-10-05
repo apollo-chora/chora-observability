@@ -196,7 +196,7 @@ CREATE INDEX IF NOT EXISTS idx_adl_autonomy_level
 -- Per-agent:  KILL-SWITCH at 100x baseline (circuit breaker).
 --
 -- Time windows: daily + monthly. Reset job runs at window boundary.
--- Hot enforcement is at the Router, NOT BigQuery (analytics path).
+-- Hot enforcement is at the Router, NOT the analytics path.
 -- -----------------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS budget_per_tenant (

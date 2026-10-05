@@ -3,7 +3,7 @@
 // Per gap-action-list 2026-05-09 §3.4 + audit-platform-fillgaps §3.4 (Spanstore
 // query API for O+ — currently absent). Two endpoints:
 //
-//	GET /api/v1/observability/spans?trace_id={X}        — Cloud Trace read
+//	GET /api/v1/observability/spans?trace_id={X}        — trace-store read (Tempo)
 //	GET /api/v1/observability/agent-decisions?run_id={X} — RLS-scoped local DB read
 //
 // Auth: Bearer token; role must be Observer or Auditor (per the task brief).
@@ -23,8 +23,8 @@ import (
 
 // spanstoreQuery GET /api/v1/observability/spans?trace_id={X}
 //
-// Reads from Cloud Trace via the trace-exporter port. trace_id is a 32-hex
-// W3C trace ID.
+// Reads from the trace store (Tempo) via the trace-exporter port. trace_id is
+// a 32-hex W3C trace ID.
 func (h *Handler) spanstoreQuery(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		writeError(w, http.StatusMethodNotAllowed, "OBS_METHOD_NOT_ALLOWED",

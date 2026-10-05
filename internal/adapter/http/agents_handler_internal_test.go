@@ -1,104 +1,15 @@
 // agents_handler_internal_test.go — white-box unit tests for the pure
-// /o/agents helpers (Cloud Trace deep-link construction + traceparent parsing
-// + window + orchestrator classification). package httpadapter (internal) so
-// the unexported helpers are directly exercised to edge coverage.
+// /o/agents helpers (window + orchestrator classification + role mapping +
+// percentile). package httpadapter (internal) so the unexported helpers are
+// directly exercised to edge coverage.
 package httpadapter
 
 import (
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/apollo-chora/chora-observability/internal/domain/agents"
 )
-
-func TestTraceIDFromTraceparent(t *testing.T) {
-	t.Parallel()
-	tid32 := strings.Repeat("a", 32)
-	cases := []struct {
-		name string
-		tp   string
-		want string
-	}{
-		{"valid", "00-" + tid32 + "-" + strings.Repeat("b", 16) + "-01", tid32},
-		{"valid uppercase hex", "00-" + strings.Repeat("A", 32) + "-x-01", strings.Repeat("A", 32)},
-		{"empty", "", ""},
-		{"too few parts", "00-" + tid32, ""},
-		{"wrong length", "00-abc-def-01", ""},
-		{"non-hex", "00-" + strings.Repeat("g", 32) + "-b-01", ""},
-	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			if got := traceIDFromTraceparent(c.tp); got != c.want {
-				t.Errorf("traceIDFromTraceparent(%q) = %q; want %q", c.tp, got, c.want)
-			}
-		})
-	}
-}
-
-func TestSpanIDFromTraceparent(t *testing.T) {
-	t.Parallel()
-	sid16 := strings.Repeat("b", 16)
-	cases := []struct {
-		name string
-		tp   string
-		want string
-	}{
-		{"valid", "00-" + strings.Repeat("a", 32) + "-" + sid16 + "-01", sid16},
-		{"empty", "", ""},
-		{"too few parts", "00-" + strings.Repeat("a", 32), ""},
-		{"wrong length", "00-" + strings.Repeat("a", 32) + "-abc-01", ""},
-		{"non-hex", "00-" + strings.Repeat("a", 32) + "-" + strings.Repeat("z", 16) + "-01", ""},
-	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			if got := spanIDFromTraceparent(c.tp); got != c.want {
-				t.Errorf("spanIDFromTraceparent(%q) = %q; want %q", c.tp, got, c.want)
-			}
-		})
-	}
-}
-
-func TestCloudTraceTraceURL(t *testing.T) {
-	t.Parallel()
-	// With a span id → pins ;traceId= AND ;spanId= (lands on the agent's span).
-	got := cloudTraceTraceURL("chora-489812", "abc123", "def456")
-	if !strings.Contains(got, "traces/explorer;traceId=abc123;spanId=def456") || !strings.Contains(got, "project=chora-489812") {
-		t.Errorf("unexpected url: %q", got)
-	}
-	// Without a span id → ;traceId= only (no ;spanId=).
-	noSpan := cloudTraceTraceURL("chora-489812", "abc123", "")
-	if !strings.Contains(noSpan, "traces/explorer;traceId=abc123") || strings.Contains(noSpan, "spanId=") {
-		t.Errorf("no-span url should be ;traceId= only: %q", noSpan)
-	}
-	// The legacy /traces/list?tid= format is DEAD (the new Explorer drops it).
-	if strings.Contains(got, "traces/list") || strings.Contains(got, "tid=") {
-		t.Errorf("must use the new ;traceId= matrix param, not legacy /traces/list?tid=: %q", got)
-	}
-	if cloudTraceTraceURL("", "abc", "s") != "" {
-		t.Error("empty project should yield empty url")
-	}
-	if cloudTraceTraceURL("p", "", "s") != "" {
-		t.Error("empty traceID should yield empty url")
-	}
-}
-
-func TestCloudTraceExplorerURL(t *testing.T) {
-	t.Parallel()
-	got := cloudTraceExplorerURL("chora-489812")
-	// The no-recent-trace fallback opens the new Trace Explorer scoped to the project.
-	if !strings.Contains(got, "console.cloud.google.com/traces/explorer") || !strings.Contains(got, "project=chora-489812") {
-		t.Errorf("unexpected url: %q", got)
-	}
-	// The dead legacy filter (/traces/list?filter=chora.agent_id — ignored by
-	// the new Explorer; agent spans carry no chora.agent_id) must not reappear.
-	if strings.Contains(got, "traces/list") || strings.Contains(got, "chora.agent_id") || strings.Contains(got, "service.name") {
-		t.Errorf("fallback must not use the dead legacy filter: %q", got)
-	}
-	if cloudTraceExplorerURL("") != "" {
-		t.Error("empty project should yield empty url")
-	}
-}
 
 func TestAgentsWindow(t *testing.T) {
 	t.Run("default 90d", func(t *testing.T) {
@@ -174,23 +85,14 @@ func TestAgentRoleFromEntry(t *testing.T) {
 func TestProjectFromEnv(t *testing.T) {
 	t.Run("CHORA_PROJECT wins", func(t *testing.T) {
 		t.Setenv("CHORA_PROJECT", "chora-custom")
-		t.Setenv("GOOGLE_CLOUD_PROJECT", "gcp-other")
 		if got := projectFromEnv(); got != "chora-custom" {
 			t.Errorf("projectFromEnv = %q; want chora-custom", got)
 		}
 	})
-	t.Run("GOOGLE_CLOUD_PROJECT fallback", func(t *testing.T) {
-		t.Setenv("CHORA_PROJECT", "")
-		t.Setenv("GOOGLE_CLOUD_PROJECT", "gcp-project-7")
-		if got := projectFromEnv(); got != "gcp-project-7" {
-			t.Errorf("projectFromEnv = %q; want gcp-project-7", got)
-		}
-	})
 	t.Run("default", func(t *testing.T) {
 		t.Setenv("CHORA_PROJECT", "")
-		t.Setenv("GOOGLE_CLOUD_PROJECT", "")
-		if got := projectFromEnv(); got != "chora-489812" {
-			t.Errorf("projectFromEnv = %q; want chora-489812", got)
+		if got := projectFromEnv(); got != "chora-local" {
+			t.Errorf("projectFromEnv = %q; want chora-local", got)
 		}
 	})
 }
@@ -216,27 +118,5 @@ func TestPercentile(t *testing.T) {
 	_ = percentile(in, 50)
 	if in[0] != 40 {
 		t.Errorf("percentile mutated its input: %v", in)
-	}
-}
-
-func TestCloudTraceURLHelpers(t *testing.T) {
-	t.Parallel()
-	if got := cloudTraceTraceURL("", "tid", ""); got != "" {
-		t.Errorf("empty project URL = %q; want empty", got)
-	}
-	if got := cloudTraceTraceURL("proj", "", ""); got != "" {
-		t.Errorf("empty trace URL = %q; want empty", got)
-	}
-	if !strings.Contains(cloudTraceTraceURL("proj", "0000000000000000000000000000000a", "0000000000000001"), "spanId=0000000000000001") {
-		t.Error("span-pinned URL missing spanId param")
-	}
-	if !strings.Contains(cloudTraceTraceURL("proj", "0000000000000000000000000000000a", ""), "traceId=0000000000000000000000000000000a") {
-		t.Error("trace URL missing traceId param")
-	}
-	if got := cloudTraceExplorerURL(""); got != "" {
-		t.Errorf("empty explorer URL = %q; want empty", got)
-	}
-	if !strings.Contains(cloudTraceExplorerURL("proj"), "traces/explorer?project=proj") {
-		t.Errorf("explorer URL = %q", cloudTraceExplorerURL("proj"))
 	}
 }

@@ -38,7 +38,7 @@ func makeOutboxRecord(eventID, tenant, gcid string, occurred time.Time) ledger.O
 		GCID:               gcid,
 		OccurredAt:         occurred,
 		Traceparent:        "",
-		SourceProject:      "chora-489812",
+		SourceProject:      "chora-local",
 		SourceService:      "chora-observability",
 		SchemaVersion:      ledger.SchemaVersionV1,
 		ChoraImdaDimension: ledger.IMDADimensionAccountability,
@@ -52,7 +52,7 @@ func TestOutboxPublisher_RecordOutboxEvent_WritesRowToStore(t *testing.T) {
 	store := outbox.NewInMemoryStore()
 	pub := outbox.NewPublisher(outbox.PublisherConfig{
 		Store:         store,
-		SourceProject: "chora-489812",
+		SourceProject: "chora-local",
 		SourceService: "chora-observability",
 	})
 
@@ -91,7 +91,7 @@ func TestOutboxPublisher_RecordOutboxEvent_StampsEnvelopeFields(t *testing.T) {
 	now := time.Date(2026, 5, 12, 10, 0, 0, 0, time.UTC)
 	pub := outbox.NewPublisher(outbox.PublisherConfig{
 		Store:         store,
-		SourceProject: "chora-489812",
+		SourceProject: "chora-local",
 		SourceService: "chora-observability",
 		Now:           func() time.Time { return now },
 	})
@@ -113,8 +113,8 @@ func TestOutboxPublisher_RecordOutboxEvent_StampsEnvelopeFields(t *testing.T) {
 			t.Errorf("envelope.%s empty; want non-empty (mandatory per CLAUDE.md §6)", key)
 		}
 	}
-	if env["source_project"] != "chora-489812" {
-		t.Errorf("envelope.source_project = %q; want chora-489812", env["source_project"])
+	if env["source_project"] != "chora-local" {
+		t.Errorf("envelope.source_project = %q; want chora-local", env["source_project"])
 	}
 	if env["source_service"] != "chora-observability" {
 		t.Errorf("envelope.source_service = %q; want chora-observability", env["source_service"])
@@ -159,8 +159,8 @@ func TestOutboxPublisher_RecordOutboxEvent_DefaultsSourceProjectAndService(t *te
 		t.Fatalf("RecordOutboxEvent: %v", err)
 	}
 	rows, _ := store.FetchPending(context.Background(), 1)
-	if rows[0].Envelope["source_project"] != "chora-489812" {
-		t.Errorf("default source_project = %q; want chora-489812", rows[0].Envelope["source_project"])
+	if rows[0].Envelope["source_project"] != "chora-local" {
+		t.Errorf("default source_project = %q; want chora-local", rows[0].Envelope["source_project"])
 	}
 	if rows[0].Envelope["source_service"] != "chora-observability" {
 		t.Errorf("default source_service = %q; want chora-observability", rows[0].Envelope["source_service"])
@@ -170,7 +170,7 @@ func TestOutboxPublisher_RecordOutboxEvent_DefaultsSourceProjectAndService(t *te
 func TestOutboxPublisher_RecordOutboxEvent_PayloadPreservedVerbatim(t *testing.T) {
 	t.Parallel()
 	store := outbox.NewInMemoryStore()
-	pub := outbox.NewPublisher(outbox.PublisherConfig{Store: store, SourceProject: "chora-489812"})
+	pub := outbox.NewPublisher(outbox.PublisherConfig{Store: store, SourceProject: "chora-local"})
 
 	customPayload := []byte(`{"verdict":"recorded","tokens":42}`)
 	rec := makeOutboxRecord("01900000-0000-7000-8000-000000000005", "t", "g", time.Now().UTC())
@@ -198,7 +198,7 @@ func TestOutboxPublisher_RecordOutboxEvent_PayloadPreservedVerbatim(t *testing.T
 func TestOutboxPublisher_RecordOutboxEvent_RejectsDuplicateIdempotencyKey(t *testing.T) {
 	t.Parallel()
 	store := outbox.NewInMemoryStore()
-	pub := outbox.NewPublisher(outbox.PublisherConfig{Store: store, SourceProject: "chora-489812"})
+	pub := outbox.NewPublisher(outbox.PublisherConfig{Store: store, SourceProject: "chora-local"})
 	rec1 := makeOutboxRecord("ev-aaa", "t", "g", time.Now().UTC())
 	rec1.IdempotencyKey = "dup-key"
 	rec2 := makeOutboxRecord("ev-bbb", "t", "g", time.Now().UTC())

@@ -10,9 +10,10 @@
 // Per [[feedback-no-stubs-real-wiring]]: the registry file is the canonical
 // source. No in-memory stubs of agent metadata at the adapter layer.
 //
-// Per ADR-145 + ADR-148: agent_engine deploys live in us-central1 TEMPORARY
-// while asia-southeast1 GA is pending. The deep-link URLs in the handler
-// template these directly.
+// Per ADR-145 + ADR-148: agent_engine deploys carry a cloud-style resource
+// name (projects/.../locations/.../reasoningEngines/...). The EngineID /
+// Location / Project helpers parse those names; the handler no longer builds
+// region deep-links.
 package agents
 
 import (

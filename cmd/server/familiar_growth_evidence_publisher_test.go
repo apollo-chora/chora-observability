@@ -44,7 +44,7 @@ func sampleEmit() subscribers.EvidenceEmit {
 }
 
 func evidenceCfg() evidencePublisherConfig {
-	return evidencePublisherConfig{SourceProject: "chora-489812", SourceService: "chora-observability"}
+	return evidencePublisherConfig{SourceProject: "chora-local", SourceService: "chora-observability"}
 }
 
 // validatingBus mirrors what CloudPublisher does in prod: it runs the REAL

@@ -27,7 +27,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	stdlog "log"
 	"strings"
 	"time"
 
@@ -89,16 +88,6 @@ type AgentDecisionLoggedEvent struct {
 	PromptConditions map[string]string
 }
 
-// DecisionBQSink mirrors each persisted decision into the BigQuery analytics
-// table (chora_observability_analytics.agent_decision_log) so the O+ "View in
-// BigQuery" deep-link + auditor BQ queries see the SAME audit trail the
-// Postgres read-model serves — closing the "BQ mirror empty" gap. Best-effort
-// by contract: a sink failure must NEVER fail the Pub/Sub ack (Postgres is the
-// canonical store). nil = disabled (the pre-export behaviour).
-type DecisionBQSink interface {
-	Insert(ctx context.Context, l *decision.Log) error
-}
-
 // AgentDecisionConsumerConfig wires the consumer.
 type AgentDecisionConsumerConfig struct {
 	// Repo is the append-only agent-decision repository (local-DB only).
@@ -107,17 +96,12 @@ type AgentDecisionConsumerConfig struct {
 	// Inbox provides exactly-once subscriber semantics keyed on event_id.
 	// nil → defaults to a fresh in-memory store (dev / test).
 	Inbox idempotent.Store
-
-	// BQSink mirrors each persisted decision into BigQuery (best-effort).
-	// nil → BQ mirroring disabled.
-	BQSink DecisionBQSink
 }
 
 // AgentDecisionConsumer projects inbound events into the decision log.
 type AgentDecisionConsumer struct {
-	repo   decision.Repository
-	inbox  idempotent.Store
-	bqSink DecisionBQSink
+	repo  decision.Repository
+	inbox idempotent.Store
 }
 
 // NewAgentDecisionConsumer constructs the consumer. Repo is required.
@@ -128,7 +112,7 @@ func NewAgentDecisionConsumer(cfg AgentDecisionConsumerConfig) *AgentDecisionCon
 	if cfg.Inbox == nil {
 		cfg.Inbox = idempotent.NewMemoryStore()
 	}
-	return &AgentDecisionConsumer{repo: cfg.Repo, inbox: cfg.Inbox, bqSink: cfg.BQSink}
+	return &AgentDecisionConsumer{repo: cfg.Repo, inbox: cfg.Inbox}
 }
 
 // SubscribedTopic returns the canonical inbound topic for binding wiring.
@@ -202,14 +186,6 @@ func (c *AgentDecisionConsumer) persist(ctx context.Context, ev AgentDecisionLog
 	}
 	if err := c.repo.Append(ctx, log); err != nil {
 		return fmt.Errorf("agent_decision_consumer.repo.Append: %w", err)
-	}
-	// Best-effort BigQuery mirror — Postgres is the canonical store, so a sink
-	// failure is logged but NEVER fails the ack (would otherwise DLQ a decision
-	// that IS persisted). Disabled when no sink is wired (bqSink == nil).
-	if c.bqSink != nil {
-		if err := c.bqSink.Insert(ctx, log); err != nil {
-			stdlog.Printf("agent_decision_consumer: BQ mirror failed (log_id=%s, persisted in pg): %v", log.LogID, err)
-		}
 	}
 	return nil
 }

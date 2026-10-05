@@ -2,7 +2,7 @@
 
 Observability service for Chora. It stores token usage, agent decisions, audit projections, budgets, and trace correlations.
 
-The recommended deployment is a local Docker container backed by PostgreSQL and the Google Pub/Sub emulator. BigQuery, Cloud Trace, Secret Manager, Cloud SQL, GKE, and other GCP infrastructure are not required for this mode.
+The recommended deployment is a local Docker container backed by PostgreSQL and a NATS JetStream event bus. Grafana Tempo is optional (trace reads). No Google Cloud infrastructure is required.
 
 ## Local deployment
 
@@ -10,7 +10,7 @@ The recommended deployment is a local Docker container backed by PostgreSQL and 
 
 - Docker with Compose
 - PostgreSQL 18
-- Google Pub/Sub emulator
+- NATS 2 (JetStream enabled)
 - A `walfa/chora-observability` image
 - The observability database migrations applied to PostgreSQL
 
@@ -23,7 +23,7 @@ The service exposes:
 
 ### Recommended Compose configuration
 
-If PostgreSQL and the Pub/Sub emulator already exist in your Compose stack, add the service like this:
+If PostgreSQL and NATS already exist in your Compose stack, add the service like this:
 
 ```yaml
 chora-observability:
@@ -39,15 +39,10 @@ chora-observability:
 
     CHORA_DB_DSN: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
 
-    GOOGLE_CLOUD_PROJECT: ${GOOGLE_CLOUD_PROJECT}
-    CHORA_PROJECT: ${GOOGLE_CLOUD_PROJECT}
-    CHORA_SOURCE_PROJECT: ${GOOGLE_CLOUD_PROJECT}
-    CHORA_PUBSUB_PROJECT: ${GOOGLE_CLOUD_PROJECT}
-    PUBSUB_EMULATOR_HOST: pubsub-emulator:8685
+    NATS_URL: nats://nats:4222
+    CHORA_SOURCE_PROJECT: chora-local
 
     CHORA_TRACING_ENABLED: "false"
-    CHORA_DECISION_BQ_ENABLED: "false"
-    CHORA_EVAL_EVIDENCE_BQ: ""
 
     PORT: "8080"
     CHORA_GRPC_PORT: "9090"
@@ -59,13 +54,13 @@ chora-observability:
   depends_on:
     postgres:
       condition: service_healthy
-    pubsub-init:
-      condition: service_completed_successfully
+    nats:
+      condition: service_healthy
 
   stop_grace_period: 30s
 ```
 
-The hostname in `CHORA_DB_DSN` is the Compose service name, not `localhost`. Likewise, `PUBSUB_EMULATOR_HOST` must use the Pub/Sub emulator's Compose service name.
+The hostname in `CHORA_DB_DSN` is the Compose service name, not `localhost`. Likewise, `NATS_URL` must use the NATS service's Compose service name.
 
 ## Environment
 
@@ -76,7 +71,8 @@ POSTGRES_USER=chora
 POSTGRES_PASSWORD=change-me
 POSTGRES_DB=chora_observability
 
-GOOGLE_CLOUD_PROJECT=chora-local
+NATS_URL=nats://127.0.0.1:4222
+CHORA_SOURCE_PROJECT=chora-local
 ```
 
 The application can also load a dotenv file itself. It checks `.env` and then `/app/.env`. Set `CHORA_ENV_FILE` to use a different path.
@@ -99,17 +95,16 @@ With strict startup enabled, the process exits when:
 
 - database configuration is missing;
 - PostgreSQL bootstrap fails;
-- `CHORA_PUBSUB_PROJECT` is missing;
-- the Pub/Sub client cannot be initialized; or
-- bootstrap unexpectedly leaves the database or Pub/Sub client unwired.
+- `NATS_URL` is missing; or
+- the NATS JetStream bus cannot be initialized.
 
 Without strict startup, the legacy development behavior is retained: missing dependencies can fall back to in-memory implementations.
 
 At startup the service logs its resolved runtime mode, for example:
 
 ```text
-observability: strict startup ENABLED — durable DB and Pub/Sub are required; in-memory fallbacks are forbidden
-observability: startup config strict=true tracing=false decision_bigquery=false eval_bigquery=false pubsub_emulator=true
+observability: strict startup ENABLED — durable DB and NATS event bus are required; in-memory fallbacks are forbidden
+observability: startup config strict=true tracing=false tempo_traces=false
 ```
 
 ## PostgreSQL
@@ -128,78 +123,25 @@ Database migrations live in `migrations/`.
 
 The repository also contains `deploy/local/init-db.sh`, which applies forward observability migrations to a newly initialized local PostgreSQL database. Production-only role grants in `9999_grant_app_roles.sql` are intentionally not applied by that local helper.
 
-## Pub/Sub emulator
+## Event bus (NATS JetStream)
 
-The service uses the normal Google Pub/Sub client library. No alternate local event implementation is required.
+The service consumes and publishes events on a NATS JetStream bus. It refuses to start without `NATS_URL` — there is no in-memory fallback, because the outbox dispatcher and every subscriber require a real broker.
 
-Point it at the emulator with:
+Streams and subscriptions are provisioned out-of-band (see `scripts/nats-init.sh` in the platform repository). The service's canonical subscriptions are documented in `cmd/server/*_binding.go`.
 
-```dotenv
-GOOGLE_CLOUD_PROJECT=chora-local
-CHORA_PROJECT=chora-local
-CHORA_SOURCE_PROJECT=chora-local
-CHORA_PUBSUB_PROJECT=chora-local
-PUBSUB_EMULATOR_HOST=pubsub-emulator:8685
-```
+## Tracing (Grafana Tempo)
 
-`PUBSUB_EMULATOR_HOST` redirects the client to the emulator. `CHORA_PUBSUB_PROJECT` is still required because the service uses it to construct Pub/Sub resources.
+The service emits OTLP traces and can read them back from Grafana Tempo. The local stack runs Tempo with OTLP ingest on `tempo:4317` and the query API on `tempo:3200`.
 
-The emulator starts empty. Topics and subscriptions must therefore be created before observability starts.
-
-A helper is provided at:
-
-```text
-deploy/local/init-pubsub.sh
-```
-
-A Compose initializer can run it:
-
-```yaml
-pubsub-init:
-  image: gcr.io/google.com/cloudsdktool/google-cloud-cli:slim
-  restart: "no"
-
-  environment:
-    PUBSUB_EMULATOR_HOST: pubsub-emulator:8685
-    CLOUDSDK_CORE_PROJECT: ${GOOGLE_CLOUD_PROJECT}
-
-  volumes:
-    - ./pubsub/init.sh:/init.sh:ro
-
-  entrypoint:
-    - /bin/bash
-    - /init.sh
-
-  depends_on:
-    pubsub-emulator:
-      condition: service_healthy
-```
-
-Then make observability depend on successful completion of that initializer.
-
-The repository helper provisions the canonical inbound subscriptions plus outbound topics needed by the service.
-
-## Disable GCP-only integrations locally
-
-Using a Pub/Sub emulator still requires a project identifier. That does not mean the service should try to use the rest of GCP.
-
-For local Docker deployments use:
+Set `TEMPO_QUERY_URL` to enable the Spanstore read routes:
 
 ```dotenv
-CHORA_TRACING_ENABLED=false
-CHORA_DECISION_BQ_ENABLED=false
-CHORA_EVAL_EVIDENCE_BQ=
+TEMPO_QUERY_URL=http://tempo:3200
 ```
 
-This keeps:
+When `TEMPO_QUERY_URL` is unset, the trace-read routes (`/api/traces/export` and `/api/v1/observability/spans`) return 503 honestly ("trace exporter not configured") rather than fabricating data.
 
-- Pub/Sub enabled through the emulator;
-- PostgreSQL enabled locally;
-- Cloud Trace disabled;
-- BigQuery decision mirroring disabled; and
-- BigQuery evaluation evidence disabled.
-
-No Google Cloud credentials or ADC are required for the normal local runtime with these integrations disabled.
+`CHORA_TRACING_ENABLED` controls whether the service emits OTLP traces at all. Set it to `false` to disable trace emission.
 
 ## Health checks
 
@@ -234,6 +176,8 @@ When using `CHORA_STRICT_STARTUP=true`, a missing required dependency causes the
 | GET | `/api/correlations/{id}` | Fetch trace correlation |
 | GET | `/api/cost/cumulative` | Cumulative cost |
 | GET | `/api/cost/by-act` | Cost breakdown |
+| POST | `/api/traces/export` | Spanstore range export (Tempo) |
+| GET | `/api/v1/observability/spans` | Spanstore query (Tempo) |
 
 ## Configuration files
 
@@ -255,39 +199,9 @@ The pricing configuration is used to derive cost information for supported model
 
 ## Local repository stack
 
-For development of this repository itself, `compose.local.yaml` provides an example stack containing:
+For development of this repository itself, `compose.local.yaml` provides an example stack containing PostgreSQL, NATS, and the observability service.
 
-```text
-PostgreSQL
-    │
-    ├── migrations
-    │
-chora-observability
-    │
-    └── Pub/Sub client
-             │
-             ▼
-      Pub/Sub emulator
-             │
-             └── pubsub-init
-```
-
-If you already maintain PostgreSQL and Pub/Sub emulator services in a larger Chora Compose stack, use those instead. There is no requirement to run the repository's example Compose file.
-
-## Existing GCP deployment
-
-The repository still contains the existing GCP deployment path and adapters for backward compatibility, including Cloud Build, GKE/Cloud Deploy configuration, Secret Manager, BigQuery, and Cloud Trace.
-
-Those are not required for local Docker deployment.
-
-The feature flags introduced for local deployment preserve the old behavior when they are absent:
-
-- `CHORA_STRICT_STARTUP` defaults to `false`;
-- `CHORA_TRACING_ENABLED` defaults to `true`;
-- `CHORA_DECISION_BQ_ENABLED` defaults to `true`; and
-- `CHORA_EVAL_EVIDENCE_BQ` remains opt-in.
-
-This allows existing GCP deployments to continue operating while local Docker deployments explicitly select only the dependencies they need.
+If you already maintain PostgreSQL and NATS services in a larger Chora Compose stack, use those instead. There is no requirement to run the repository's example Compose file.
 
 ## Building
 

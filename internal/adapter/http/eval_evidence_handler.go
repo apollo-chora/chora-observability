@@ -4,17 +4,16 @@
 //	GET /api/v1/observability/eval-runs/{candidateLabel}     — per-row drill-down
 //
 // Backs the O+ Agent-Eval drill-down (IMDA D2 transparency evidence) via the
-// chora-gateway BFF /bff/oplus/eval-runs[...]. Source: the BigQuery
-// agent_eval_evidence view (eval.Repository).
+// chora-gateway BFF /bff/oplus/eval-runs[...]. Source: the analytics store
+// (eval.Repository). No repository is wired, so both routes report 503
+// honestly ("agent-eval evidence repository not wired") rather than
+// fabricating an empty-but-200 response.
 //
-// Scope: PLATFORM-level eval telemetry. The view has no tenant_id column —
+// Scope: PLATFORM-level eval telemetry. The store has no tenant_id column —
 // the X-Tenant-Id header is required (the tenantContext middleware enforces it
 // on /api/*) but is NOT applied as a query filter. Auditor/admin authorization
 // is enforced upstream by the BFF AuditorGate; chora-observability trusts the
 // forwarded context.
-//
-// Per [[feedback-no-stubs-real-wiring]]: a real BigQuery read. An empty result
-// is honest; query errors surface as 500.
 package httpadapter
 
 import (

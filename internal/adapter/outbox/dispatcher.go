@@ -388,7 +388,7 @@ func reconstructEnvelope(row *Row) (cgcenvelope.Envelope, error) {
 		env.TenantID = row.TenantID
 	}
 	if env.SourceProject == "" {
-		env.SourceProject = "chora-489812"
+		env.SourceProject = "chora-local"
 	}
 	if env.SourceService == "" {
 		env.SourceService = "chora-observability"

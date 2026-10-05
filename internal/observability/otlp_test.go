@@ -11,12 +11,10 @@ import (
 )
 
 // TestInit_StdoutFallbackOnDevEnv exercises the dev-mode path (no
-// GOOGLE_CLOUD_PROJECT / OTEL_EXPORTER_OTLP_ENDPOINT / ADC). The canonical
-// lib falls back to stdouttrace and Init() returns a usable shutdown.
+// OTEL_EXPORTER_OTLP_ENDPOINT). The canonical lib falls back to stdouttrace
+// and Init() returns a usable shutdown.
 func TestInit_StdoutFallbackOnDevEnv(t *testing.T) {
 	t.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "")
-	t.Setenv("GOOGLE_CLOUD_PROJECT", "")
-	t.Setenv("GOOGLE_APPLICATION_CREDENTIALS", "")
 	t.Setenv("CHORA_OTLP_INIT_TIMEOUT_SECONDS", "5")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -41,8 +39,6 @@ func TestInit_StdoutFallbackOnDevEnv(t *testing.T) {
 // handle that eventually resolves to a usable OTLPResult.
 func TestInitAsync_HandleResolves(t *testing.T) {
 	t.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "")
-	t.Setenv("GOOGLE_CLOUD_PROJECT", "")
-	t.Setenv("GOOGLE_APPLICATION_CREDENTIALS", "")
 	t.Setenv("CHORA_OTLP_INIT_TIMEOUT_SECONDS", "5")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -73,8 +69,6 @@ func TestInitAsync_HandleResolves(t *testing.T) {
 // shutdown closure remains safe to call.
 func TestInit_TimedOutCtxReturnsErrInitTimeout(t *testing.T) {
 	t.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "")
-	t.Setenv("GOOGLE_CLOUD_PROJECT", "")
-	t.Setenv("GOOGLE_APPLICATION_CREDENTIALS", "")
 	// Force the lib's init goroutine to take longer than our ctx allows.
 	t.Setenv("CHORA_OTLP_INIT_TIMEOUT_SECONDS", "30")
 
@@ -124,10 +118,6 @@ func TestSwapExporterFactoryForTest_DelegatesToCanonicalLib(t *testing.T) {
 	// the synthetic factory error propagates through the lib's
 	// goroutine-bounded path.
 	t.Setenv("CHORA_OTLP_INIT_TIMEOUT_SECONDS", "2")
-	// Force the lib's isDevExport heuristic OFF so cloudtrace path runs
-	// our swapped factory; otherwise stdouttrace short-circuits the
-	// factory.
-	t.Setenv("GOOGLE_CLOUD_PROJECT", "chora-observability-test")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -151,7 +141,7 @@ func TestSwapExporterFactoryForTest_DelegatesToCanonicalLib(t *testing.T) {
 }
 
 // TestServiceNameConstantPinned guards against accidental rename of the
-// canonical service name (Cloud Trace uses service.name as the index
+// canonical service name (the trace store uses service.name as the index
 // key; changing it splits historical span lookups).
 func TestServiceNameConstantPinned(t *testing.T) {
 	if ServiceName != "chora-observability" {

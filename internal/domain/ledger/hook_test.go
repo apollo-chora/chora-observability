@@ -53,7 +53,7 @@ func TestLedgerHook_Record_AppendsAndPublishesAndAccrues(t *testing.T) {
 		Ledger:        ledgerRepo,
 		Budgets:       budgetLookup,
 		Outbox:        outbox,
-		SourceProject: "chora-489812",
+		SourceProject: "chora-local",
 		SourceService: "chora-model-broker-gateway",
 		Period:        enfPeriod,
 	})
@@ -118,7 +118,7 @@ func TestLedgerHook_Record_ValidationError(t *testing.T) {
 		Ledger:        inmem.NewLedgerRepository(),
 		Budgets:       inmem.NewBudgetLookup(),
 		Outbox:        &stubOutbox{},
-		SourceProject: "chora-489812",
+		SourceProject: "chora-local",
 		SourceService: "chora-model-broker-gateway",
 		Period:        enfPeriod,
 	})
@@ -146,7 +146,7 @@ func TestLedgerHook_Record_OutboxFailureRollsBack(t *testing.T) {
 	outbox := &stubOutbox{err: errors.New("pubsub down")}
 	hook := ledger.NewLedgerHook(ledger.LedgerHookConfig{
 		Ledger: ledgerRepo, Budgets: budgetLookup, Outbox: outbox,
-		SourceProject: "chora-489812",
+		SourceProject: "chora-local",
 		SourceService: "chora-model-broker-gateway",
 		Period:        enfPeriod,
 	})
@@ -176,7 +176,7 @@ func TestLedgerHook_Record_PassesPricingVersionThrough(t *testing.T) {
 		Ledger:               inmem.NewLedgerRepository(),
 		Budgets:              inmem.NewBudgetLookup(),
 		Outbox:               &stubOutbox{},
-		SourceProject:        "chora-489812",
+		SourceProject:        "chora-local",
 		SourceService:        "chora-model-broker-gateway",
 		Period:               enfPeriod,
 		PricingConfigVersion: "2026.05.09-1",
@@ -201,7 +201,7 @@ func TestLedgerHook_Record_SkipsBudgetWhenNotConfigured(t *testing.T) {
 		Ledger:        inmem.NewLedgerRepository(),
 		Budgets:       nil,
 		Outbox:        &stubOutbox{},
-		SourceProject: "chora-489812",
+		SourceProject: "chora-local",
 		SourceService: "chora-model-broker-gateway",
 		Period:        enfPeriod,
 	})

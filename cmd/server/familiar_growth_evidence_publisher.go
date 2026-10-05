@@ -18,7 +18,7 @@
 // restart and is replayable.
 //
 // Wire shape: the topic carries a BINARY protobuf schema
-// (chora-governance-evidence-recorded-v1, verified against chora-489812 on
+// (chora-governance-evidence-recorded-v1, verified on
 // 2026-07-17), so the payload is a marshalled chora.governance.v1
 // .EvidenceRecorded. A JSON payload would be rejected with a 400 AT PUBLISH and
 // would never reach a DLQ.
