@@ -341,3 +341,31 @@ func TestTokenUsageConsumer_PropagatesGCIDFromAGID(t *testing.T) {
 		t.Errorf("gcid = %q; want agid-system-1 (preserved verbatim)", entries[0].Gcid)
 	}
 }
+
+// TestTokenUsageConsumer_PersistsCachedTokens is the regression guard for a
+// silently dropped field: the proto and the event struct both carried
+// cached_tokens and the ledger schema had the column, but the domain Entry and
+// the INSERT omitted it, so every row stored 0. Found by publishing a real
+// event through NATS into Postgres and reading the row back.
+func TestTokenUsageConsumer_PersistsCachedTokens(t *testing.T) {
+	t.Parallel()
+	cons, repo := newFixture(t)
+
+	ev := goodEvent()
+	ev.EventID = "evt-cached-tokens"
+	ev.CachedTokens = 9
+	if err := cons.Handle(context.Background(), ev); err != nil {
+		t.Fatalf("Handle: %v", err)
+	}
+
+	entries, err := repo.List(context.Background(), "tenant-a", ledger.ListFilter{})
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("entries = %d; want 1", len(entries))
+	}
+	if got := entries[0].CachedTokens; got != 9 {
+		t.Errorf("cached_tokens = %d; want 9 (field dropped between consumer and ledger)", got)
+	}
+}

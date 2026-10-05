@@ -34,6 +34,7 @@ type Entry struct {
 	ModelID          string    `json:"model_id"`
 	PromptTokens     int       `json:"prompt_tokens"`
 	CompletionTokens int       `json:"completion_tokens"`
+	CachedTokens     int       `json:"cached_tokens"`
 	CostUsdMicros    int64     `json:"cost_usd_micros"` // 1e-6 USD
 	TraceID          string    `json:"trace_id"`        // 32 hex (W3C)
 	SpanID           string    `json:"span_id"`         // 16 hex (W3C)
@@ -48,6 +49,7 @@ type NewParams struct {
 	ModelID          string
 	PromptTokens     int
 	CompletionTokens int
+	CachedTokens     int
 	CostUsdMicros    int64
 	TraceID          string
 	SpanID           string
@@ -74,6 +76,9 @@ func New(p NewParams) (*Entry, error) {
 	}
 	if p.CompletionTokens < 0 {
 		return nil, fmt.Errorf("completion_tokens negative: %d", p.CompletionTokens)
+	}
+	if p.CachedTokens < 0 {
+		return nil, fmt.Errorf("cached_tokens negative: %d", p.CachedTokens)
 	}
 	if p.CostUsdMicros < 0 {
 		return nil, fmt.Errorf("cost_usd_micros negative: %d", p.CostUsdMicros)
@@ -103,6 +108,7 @@ func New(p NewParams) (*Entry, error) {
 		ModelID:          p.ModelID,
 		PromptTokens:     p.PromptTokens,
 		CompletionTokens: p.CompletionTokens,
+		CachedTokens:     p.CachedTokens,
 		CostUsdMicros:    p.CostUsdMicros,
 		TraceID:          strings.ToLower(p.TraceID),
 		SpanID:           strings.ToLower(p.SpanID),

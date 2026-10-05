@@ -149,6 +149,7 @@ func (c *TokenUsageConsumer) persist(ctx context.Context, ev TokenUsageRecordedE
 		ModelID:          ev.ModelID,
 		PromptTokens:     int(ev.InputTokens),
 		CompletionTokens: int(ev.OutputTokens),
+		CachedTokens:     int(ev.CachedTokens),
 		CostUsdMicros:    ev.CostMicros,
 		TraceID:          traceID,
 		SpanID:           spanID,

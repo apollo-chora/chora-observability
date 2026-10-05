@@ -104,8 +104,8 @@ func (r *extRows) Err() error             { return nil }
 func TestLedgerRepository_List_ScansRows(t *testing.T) {
 	q := &extStubQuerier{
 		rows: [][]any{
-			{"lid-1", "t-1", "g-1", "ag-1", "m-1", 10, 20, int64(100), "trace-1", "span-1", time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)},
-			{"lid-2", "t-1", "g-2", "ag-2", "m-2", 30, 40, int64(200), "trace-2", "span-2", time.Date(2026, 5, 2, 0, 0, 0, 0, time.UTC)},
+			{"lid-1", "t-1", "g-1", "ag-1", "m-1", 10, 20, 5, int64(100), "trace-1", "span-1", time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)},
+			{"lid-2", "t-1", "g-2", "ag-2", "m-2", 30, 40, 7, int64(200), "trace-2", "span-2", time.Date(2026, 5, 2, 0, 0, 0, 0, time.UTC)},
 		},
 	}
 	repo := pg.NewLedgerRepository(q)
@@ -121,6 +121,9 @@ func TestLedgerRepository_List_ScansRows(t *testing.T) {
 	}
 	if entries[0].LedgerID != "lid-1" || entries[1].CostUsdMicros != 200 {
 		t.Errorf("scan mismatch: %+v", entries)
+	}
+	if entries[0].CachedTokens != 5 || entries[1].CachedTokens != 7 {
+		t.Errorf("cached_tokens scan mismatch: %d, %d; want 5, 7", entries[0].CachedTokens, entries[1].CachedTokens)
 	}
 	// "platform" must normalise to the nil-UUID sentinel for the RLS GUC
 	if !q.txCalled || q.tenantID != pg.NilTenantUUID {

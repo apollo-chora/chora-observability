@@ -53,12 +53,12 @@ func (r *LedgerRepository) Append(ctx context.Context, e *ledger.Entry) error {
 	q := `
         INSERT INTO token_usage_ledger (
             ledger_id, tenant_id, gcid, agent_id, model_id,
-            prompt_tokens, completion_tokens, cost_usd_micros,
+            prompt_tokens, completion_tokens, cached_tokens, cost_usd_micros,
             cost_sgd_micros, fx_rate, trace_id, span_id, recorded_at
         )
         VALUES ($1, $2, $3, NULLIF($4, ''), $5,
-                $6, $7, $8,
-                $9, $10, $11, $12, $13)
+                $6, $7, $8, $9,
+                $10, $11, $12, $13, $14)
     `
 	// tenant_id is normalised ("platform"/"" → NilTenantUUID) so it both
 	// satisfies the UUID column AND matches the SET LOCAL chora.tenant_id
@@ -79,6 +79,7 @@ func (r *LedgerRepository) Append(ctx context.Context, e *ledger.Entry) error {
 			e.ModelID,
 			e.PromptTokens,
 			e.CompletionTokens,
+			e.CachedTokens,
 			e.CostUsdMicros,
 			int64(0),
 			float32(1.35),
@@ -105,7 +106,7 @@ func (r *LedgerRepository) List(ctx context.Context, tenantID string, f ledger.L
 	}
 	q := `
         SELECT ledger_id, tenant_id, gcid, COALESCE(agent_id, ''), model_id,
-               prompt_tokens, completion_tokens, cost_usd_micros,
+               prompt_tokens, completion_tokens, cached_tokens, cost_usd_micros,
                trace_id, span_id, recorded_at
         FROM token_usage_ledger
         WHERE tenant_id = $1
@@ -139,6 +140,7 @@ func (r *LedgerRepository) List(ctx context.Context, tenantID string, f ledger.L
 				&e.ModelID,
 				&e.PromptTokens,
 				&e.CompletionTokens,
+				&e.CachedTokens,
 				&e.CostUsdMicros,
 				&e.TraceID,
 				&e.SpanID,
