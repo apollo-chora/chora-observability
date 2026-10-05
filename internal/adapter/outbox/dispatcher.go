@@ -3,7 +3,8 @@
 // Dispatcher drains pending outbox_events rows to the NATS JetStream event
 // bus. Composes Store.FetchPending → Bus.Publish → Store.MarkPublished /
 // MarkFailed / Deadletter. On max-attempts exhaustion the row lands in
-// outbox_dead_letters AND a broker-side DLQ subject (chora.dlq.<topic>).
+// outbox_dead_letters AND a broker-side DLQ subject
+// (eventbus.DLQSubject(topic) = _dlq.<topic>).
 //
 // Per `feedback_d6_resilience_first_class` B.6.2.a — dispatcher is the
 // retry + DLQ ladder for the producer-side outbox. Subscriber-side

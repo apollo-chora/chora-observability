@@ -925,7 +925,8 @@ func envOrDefault(key, def string) string {
 // subscription. Name is the subscription ID preserved verbatim from the
 // Pub/Sub era (it becomes the NATS durable consumer name); Subject is the
 // canonical event subject. MaxDeliver / AckWait / Backoff are the platform
-// retry policy; DLQSubject follows the chora.dlq.<topic> convention.
+// retry policy; DLQSubject follows the single platform convention
+// (eventbus.DLQSubject -> _dlq.<subject>, captured by the CHORA_DLQ stream).
 func consumerConfig(name, subject string) eventbus.ConsumerConfig {
 	return eventbus.ConsumerConfig{
 		Name:       name,
@@ -933,14 +934,8 @@ func consumerConfig(name, subject string) eventbus.ConsumerConfig {
 		MaxDeliver: 5,
 		AckWait:    30 * time.Second,
 		Backoff:    []time.Duration{1 * time.Second, 5 * time.Second, 15 * time.Second, 30 * time.Second},
-		DLQSubject: dlqSubject(subject),
+		DLQSubject: eventbus.DLQSubject(subject),
 	}
-}
-
-// dlqSubject maps an inbound subject to its dead-letter subject per the
-// platform convention: chora.dlq.<topic>.
-func dlqSubject(subject string) string {
-	return "chora.dlq." + strings.TrimPrefix(subject, "chora.")
 }
 
 // sqlDBAdapter bridges *sql.DB to obsoutbox.SQLDB (which uses

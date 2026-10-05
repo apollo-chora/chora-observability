@@ -4,7 +4,7 @@ go 1.26.1
 
 require (
 	cloud.google.com/go/bigquery v1.77.0
-	github.com/apollo-chora/chora-common v0.0.0-20261005021734-d29c0a83ba46
+	github.com/apollo-chora/chora-common v0.0.0-20261005024608-7c665d60df86
 	github.com/apollo-chora/chora-contracts/gen/go v0.0.0-20261004213314-68f152f9f455
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.9.2
@@ -21,7 +21,6 @@ require (
 	cloud.google.com/go/auth/oauth2adapt v0.2.8 // indirect
 	cloud.google.com/go/compute/metadata v0.9.0 // indirect
 	cloud.google.com/go/iam v1.11.0 // indirect
-	cloud.google.com/go/pubsub/v2 v2.6.0 // indirect
 	cloud.google.com/go/secretmanager v1.20.0 // indirect
 	cloud.google.com/go/storage v1.63.0 // indirect
 	cloud.google.com/go/trace v1.16.0 // indirect
@@ -47,7 +46,6 @@ require (
 	github.com/nats-io/nuid v1.0.1 // indirect
 	github.com/pierrec/lz4/v4 v4.1.18 // indirect
 	github.com/zeebo/xxh3 v1.0.2 // indirect
-	go.opencensus.io v0.24.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.68.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.67.0 // indirect
@@ -64,7 +62,7 @@ require (
 	golang.org/x/sys v0.48.0 // indirect
 	golang.org/x/telemetry v0.0.0-20260811182544-a038080d80e5 // indirect
 	golang.org/x/text v0.42.0 // indirect
-	golang.org/x/time v0.15.0 // indirect
+	golang.org/x/time v0.16.0 // indirect
 	golang.org/x/tools v0.49.0 // indirect
 	golang.org/x/xerrors v0.0.0-20240903120638-7835f813f4da // indirect
 	google.golang.org/genproto v0.0.0-20260519071638-aa98bba5eb94 // indirect

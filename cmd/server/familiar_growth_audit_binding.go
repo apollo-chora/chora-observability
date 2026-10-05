@@ -67,7 +67,9 @@ type familiarGrowthAuditBinding struct {
 // 2026-07-17 in chora-489812: all 7 exist, all have an empty
 // pushConfig.pushEndpoint, all carry a dead_letter_policy with
 // maxDeliveryAttempts=5 onto chora.dlq.<topic>, and each DLQ topic has a .pull
-// drain subscription). The names are preserved verbatim from the Pub/Sub era
+// drain subscription). Under NATS the dead-letter subject is
+// eventbus.DLQSubject(topic) = _dlq.<topic>, captured by the CHORA_DLQ stream.
+// The subscription names are preserved verbatim from the Pub/Sub era
 // as the NATS durable consumer names, as with the token_usage / ritual_audit
 // consumers.
 var familiarGrowthAuditBindings = []familiarGrowthAuditBinding{
