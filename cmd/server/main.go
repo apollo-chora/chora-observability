@@ -515,7 +515,7 @@ func main() {
 		},
 	)
 	ritualAuditDone := startRitualRunAuditSubscriber(
-		ctx, bus, ritualAuditSubscription, ritualAuditHandler,
+		ctx, bus, ritualAuditSubscription, ritualaudit.TopicFamiliarRitualRunCompleted, ritualAuditHandler,
 	)
 
 	// ADR-254 companion rename: the producer now emits
@@ -537,7 +537,7 @@ func main() {
 		},
 	)
 	ritualAuditCompanionDone := startRitualRunAuditSubscriber(
-		ctx, bus, ritualAuditCompanionSubscription, ritualAuditCompanionHandler,
+		ctx, bus, ritualAuditCompanionSubscription, ritualaudit.TopicCompanionRitualRunCompleted, ritualAuditCompanionHandler,
 	)
 
 	// ----------------------------------------------------------------------

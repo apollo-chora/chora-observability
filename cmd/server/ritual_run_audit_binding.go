@@ -43,6 +43,7 @@ func startRitualRunAuditSubscriber(
 	ctx context.Context,
 	bus eventbus.Subscriber,
 	subscription string,
+	topic string,
 	handler eventbus.Handler,
 ) chan struct{} {
 	if bus == nil || handler == nil {
@@ -51,14 +52,17 @@ func startRitualRunAuditSubscriber(
 	if subscription == "" {
 		subscription = DefaultRitualAuditSubscription
 	}
+	if topic == "" {
+		topic = ritualaudit.TopicFamiliarRitualRunCompleted
+	}
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
 		log.Printf(
 			"observability: ritual_run_audit subscriber started (subscription=%s, topic=%s)",
-			subscription, ritualaudit.TopicFamiliarRitualRunCompleted,
+			subscription, topic,
 		)
-		err := bus.Subscribe(ctx, consumerConfig(subscription, ritualaudit.TopicFamiliarRitualRunCompleted), handler)
+		err := bus.Subscribe(ctx, consumerConfig(subscription, topic), handler)
 		if err != nil && !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
 			log.Printf(
 				"observability: ritual_run_audit subscriber exited: %v", err,
