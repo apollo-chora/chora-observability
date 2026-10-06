@@ -345,3 +345,116 @@ func TestDecode_TenancyFamiliarEggPaymentSucceeded_Binary(t *testing.T) {
 		t.Errorf("currency = %q", v)
 	}
 }
+
+// ADR-254 companion rename: the producers emit the SAME binary proto messages
+// on the companion.* subjects, so each companion topic must binary-decode
+// (not fall back to JSON, which would fail on the binary wire shape).
+func TestDecode_CompanionTopics_Binary(t *testing.T) {
+	t0 := time.Date(2026, 5, 16, 9, 30, 0, 0, time.UTC)
+	env := &commonv1.EventEnvelope{
+		EventId: "01971a90-0000-7000-8000-cmp", TenantId: "tenant-acme",
+		Gcid: "gcid-phyllis", OccurredAt: timestamppb.New(t0), SchemaVersion: 1,
+	}
+	cases := []struct {
+		topic string
+		msg   proto.Message
+		check func(t *testing.T, got map[string]any)
+	}{
+		{
+			topic: "chora.consumption.companion.exp_awarded.v1",
+			msg: &consumptionv1.CompanionExpAwarded{
+				Envelope: env, CompanionId: "fam-1", OwnerGcid: "gcid-phyllis",
+				ExpDelta: 3, Source: "atom_session",
+			},
+			check: func(t *testing.T, got map[string]any) {
+				if v, _ := got["familiar_id"].(string); v != "fam-1" {
+					t.Errorf("familiar_id = %q", v)
+				}
+				if v, _ := got["exp_source"].(string); v != "atom_session" {
+					t.Errorf("exp_source = %q", v)
+				}
+			},
+		},
+		{
+			topic: "chora.consumption.companion.stage_up.v1",
+			msg: &consumptionv1.CompanionStageUp{
+				Envelope: env, CompanionId: "fam-1", StageFrom: 2, StageTo: 3,
+			},
+			check: func(t *testing.T, got map[string]any) {
+				if v, _ := got["stage_to"].(int); v != 3 {
+					t.Errorf("stage_to = %v", got["stage_to"])
+				}
+			},
+		},
+		{
+			topic: "chora.consumption.companion.breed_revealed.v1",
+			msg: &consumptionv1.CompanionBreedRevealed{
+				Envelope: env, CompanionId: "fam-1", EggSku: "egg-mystic",
+				Rarity: "legendary", RolledProbability: 0.0125,
+			},
+			check: func(t *testing.T, got map[string]any) {
+				if v, _ := got["egg_sku"].(string); v != "egg-mystic" {
+					t.Errorf("egg_sku = %q", v)
+				}
+			},
+		},
+		{
+			topic: "chora.consumption.companion.hatched.v1",
+			msg: &consumptionv1.CompanionHatched{
+				Envelope: env, CompanionId: "fam-1",
+			},
+			check: func(t *testing.T, got map[string]any) {
+				if v, _ := got["familiar_id"].(string); v != "fam-1" {
+					t.Errorf("familiar_id = %q", v)
+				}
+			},
+		},
+		{
+			topic: "chora.consumption.companion.source_revelation.v1",
+			msg: &consumptionv1.CompanionSourceRevelation{
+				Envelope: env, CompanionId: "fam-1", WindowDurationSeconds: 900,
+			},
+			check: func(t *testing.T, got map[string]any) {
+				if v, _ := got["window_duration_seconds"].(int); v != 900 {
+					t.Errorf("window_duration_seconds = %v", got["window_duration_seconds"])
+				}
+			},
+		},
+		{
+			topic: "chora.consumption.companion.egg_purchased.v1",
+			msg: &consumptionv1.CompanionEggPurchased{
+				Envelope: env, CompanionId: "fam-1", EggSku: "egg-mystic", Source: "stripe",
+			},
+			check: func(t *testing.T, got map[string]any) {
+				if v, _ := got["purchase_source"].(string); v != "stripe" {
+					t.Errorf("purchase_source = %q", v)
+				}
+			},
+		},
+		{
+			topic: "chora.tenancy.companion_egg.payment_succeeded.v1",
+			msg: &tenancyv1.CompanionEggPaymentSucceeded{
+				Envelope: env, EggSku: "egg-mystic", AmountCentsPaid: 999, Currency: "SGD",
+			},
+			check: func(t *testing.T, got map[string]any) {
+				if v, _ := got["currency"].(string); v != "SGD" {
+					t.Errorf("currency = %q", v)
+				}
+			},
+		},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.topic, func(t *testing.T) {
+			bz, err := proto.Marshal(tc.msg)
+			if err != nil {
+				t.Fatalf("proto.Marshal: %v", err)
+			}
+			got, err := protodecode.DecodePayloadMap(tc.topic, bz)
+			if err != nil {
+				t.Fatalf("DecodePayloadMap %s: %v", tc.topic, err)
+			}
+			tc.check(t, got)
+		})
+	}
+}

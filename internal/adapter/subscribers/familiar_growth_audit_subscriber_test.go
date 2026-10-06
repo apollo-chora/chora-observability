@@ -482,17 +482,91 @@ func TestSubscriber_SubscribedTopics(t *testing.T) {
 	t.Parallel()
 	sub, _, _, _ := newSubscriber(t)
 	topics := sub.SubscribedTopics()
-	// 7 topics post-Fix-D 2026-05-16 (added hatched.v1).
-	if len(topics) != 7 {
-		t.Fatalf("expected 7 subscribed topics; got %d (%v)", len(topics), topics)
+	// 7 legacy familiar.* + 7 ADR-254 canonical companion.* (same event types,
+	// same projection — only the aggregate token in the subject changed).
+	if len(topics) != 14 {
+		t.Fatalf("expected 14 subscribed topics; got %d (%v)", len(topics), topics)
 	}
-	var foundHatched bool
+	var foundHatched, foundCompanionHatched bool
 	for _, tp := range topics {
 		if tp == fg.TopicHatched {
 			foundHatched = true
 		}
+		if tp == fg.TopicHatchedCompanion {
+			foundCompanionHatched = true
+		}
 	}
 	if !foundHatched {
 		t.Fatalf("expected SubscribedTopics to include hatched.v1; got %v", topics)
+	}
+	if !foundCompanionHatched {
+		t.Fatalf("expected SubscribedTopics to include the ADR-254 companion hatched.v1; got %v", topics)
+	}
+}
+
+// TestSubscriber_CompanionTopicsProject is the ADR-254 consumer-side
+// regression: the producer emits the companion.* subjects, so an event on
+// each companion topic must project exactly like its familiar.* twin (same
+// ledger row shape, same side effects) — only source_topic differs.
+func TestSubscriber_CompanionTopicsProject(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name  string
+		topic string
+		event subscribers.FamiliarGrowthEvent
+	}{
+		{"exp_awarded", fg.TopicExpAwardedCompanion, subscribers.FamiliarGrowthEvent{
+			SourceEventID: "e1", TenantID: testTenantID, FamiliarID: "fam-1",
+			ExpDelta: 25, ExpSource: "atom_session",
+		}},
+		{"stage_up", fg.TopicStageUpCompanion, subscribers.FamiliarGrowthEvent{
+			SourceEventID: "e2", TenantID: testTenantID, FamiliarID: "fam-1",
+			StageFrom: 2, StageTo: 3,
+		}},
+		{"breed_revealed", fg.TopicBreedRevealedCompanion, subscribers.FamiliarGrowthEvent{
+			SourceEventID: "e3", TenantID: testTenantID, FamiliarID: "fam-1",
+			EggSKU: "egg-common", Species: "ember_drake", Rarity: "common",
+		}},
+		{"hatched", fg.TopicHatchedCompanion, subscribers.FamiliarGrowthEvent{
+			SourceEventID: "e4", TenantID: testTenantID, FamiliarID: "fam-1",
+		}},
+		{"source_revelation", fg.TopicSourceRevelationCompanion, subscribers.FamiliarGrowthEvent{
+			SourceEventID: "e5", TenantID: testTenantID, FamiliarID: "fam-1",
+			WindowDurationSeconds: 900,
+		}},
+		{"egg_purchased", fg.TopicEggPurchasedCompanion, subscribers.FamiliarGrowthEvent{
+			SourceEventID: "e6", TenantID: testTenantID, FamiliarID: "fam-1",
+			EggSKU: "egg-common", PurchaseSource: "purchase",
+		}},
+		{"payment_succeeded", fg.TopicPaymentSucceededCompanion, subscribers.FamiliarGrowthEvent{
+			SourceEventID: "e7", TenantID: testTenantID, FamiliarID: "fam-1",
+			EggSKU: "egg-common", AmountCents: 499, Currency: "USD",
+		}},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			sub, repo, pub, _ := newSubscriber(t)
+			ev := tc.event
+			ev.SourceTopic = tc.topic
+			if err := sub.Handle(context.Background(), ev); err != nil {
+				t.Fatalf("handle %s: %v", tc.topic, err)
+			}
+			rows, err := repo.ListLedger(context.Background(), testTenantID, fg.AuditFilter{Limit: 100})
+			if err != nil {
+				t.Fatalf("ListLedger: %v", err)
+			}
+			if len(rows) != 1 {
+				t.Fatalf("expected 1 ledger row for %s; got %d", tc.topic, len(rows))
+			}
+			if rows[0].SourceTopic != tc.topic {
+				t.Errorf("source_topic = %q, want %q", rows[0].SourceTopic, tc.topic)
+			}
+			emitted := pub.Emitted()
+			if len(emitted) != 1 || emitted[0].SourceTopic != tc.topic {
+				t.Fatalf("evidence emit must carry the companion source topic; got %+v", emitted)
+			}
+		})
 	}
 }

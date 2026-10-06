@@ -181,12 +181,15 @@ func (c *RitualRunAuditConsumer) persist(ctx context.Context, ev RitualRunComple
 }
 
 // validateRitualRunEvent rejects clearly-malformed inbound events early (cheap,
-// no I/O — a NACK + DLQ on a bad event happens fast).
+// no I/O — a NACK + DLQ on a bad event happens fast). Both the legacy familiar.*
+// and the ADR-254 canonical companion.* subjects are accepted — the producer
+// now emits the companion subject; the familiar one is retained for stragglers.
 func validateRitualRunEvent(ev RitualRunCompletedEvent) error {
 	if strings.TrimSpace(ev.SourceTopic) == "" {
 		return errors.New("ritual_run_audit_consumer: source_topic required")
 	}
-	if ev.SourceTopic != ra.TopicFamiliarRitualRunCompleted {
+	if ev.SourceTopic != ra.TopicFamiliarRitualRunCompleted &&
+		ev.SourceTopic != ra.TopicCompanionRitualRunCompleted {
 		return fmt.Errorf("ritual_run_audit_consumer: unknown source_topic %q", ev.SourceTopic)
 	}
 	if strings.TrimSpace(ev.SourceEventID) == "" {

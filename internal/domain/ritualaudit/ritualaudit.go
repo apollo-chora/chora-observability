@@ -19,13 +19,22 @@ import (
 	"time"
 )
 
-// TopicFamiliarRitualRunCompleted is the single inbound topic this projection
+// TopicFamiliarRitualRunCompleted is the LEGACY inbound topic this projection
 // binds to (published by chora-consumption's RitualRunner.publishCompleted).
 // Declared locally — the observability projection never imports the
 // chora-consumption domain (a cross-service domain import would break the
 // hexagonal boundary; the familiar-growth audit vertical declares its topics
 // the same way).
+//
+// ADR-254 renamed the aggregate to `companion`; the producer now emits
+// TopicCompanionRitualRunCompleted. Both are consumed — the companion subject
+// carries the live traffic, the familiar subject is retained for any
+// straggler producer still on the legacy name.
 const TopicFamiliarRitualRunCompleted = "chora.consumption.familiar.ritual_run_completed.v1"
+
+// TopicCompanionRitualRunCompleted is the ADR-254 canonical inbound topic
+// (chora-contracts proto/events/consumption/ritual.proto).
+const TopicCompanionRitualRunCompleted = "chora.consumption.companion.ritual_run_completed.v1"
 
 // RitualRunAuditRow mirrors one ritual_run_audit row — one row per inbound
 // ritual_run_completed event, idempotent on source_event_id.

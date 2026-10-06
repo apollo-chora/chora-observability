@@ -553,3 +553,141 @@ func TestFamiliarGrowthAuditPullHandler_EveryBoundTopicProjects(t *testing.T) {
 		})
 	}
 }
+
+// --- ADR-254 companion rename: the live producer lane ------------------------
+
+// TestFamiliarGrowthAuditPullHandler_CompanionTopicsProject is the consumer
+// half of the ADR-254 familiar->companion rename: the producer emits the SAME
+// binary proto messages on the companion.* subjects, so each companion topic
+// must decode + project exactly like its familiar.* twin, recording the
+// companion subject as source_topic.
+func TestFamiliarGrowthAuditPullHandler_CompanionTopicsProject(t *testing.T) {
+	t.Parallel()
+	env := func(id string) *commonv1.EventEnvelope {
+		return &commonv1.EventEnvelope{EventId: id, TenantId: growthTenantID, Gcid: growthGCID}
+	}
+	cases := []struct {
+		topic   string
+		eventID string
+		msg     proto.Message
+		// wantFamiliar is the companion_id the proto carries; empty means the
+		// event type has no companion identity on the wire (payment_succeeded).
+		wantFamiliar string
+	}{
+		{
+			topic:   fg.TopicExpAwardedCompanion,
+			eventID: "ffff0001-0000-7000-8000-000000000001",
+			msg: &consumptionv1.CompanionExpAwarded{
+				Envelope:    env("ffff0001-0000-7000-8000-000000000001"),
+				CompanionId: growthFamiliar,
+				OwnerGcid:   growthGCID,
+				ExpDelta:    40,
+				Source:      "atom_session",
+			},
+			wantFamiliar: growthFamiliar,
+		},
+		{
+			topic:   fg.TopicStageUpCompanion,
+			eventID: "ffff0002-0000-7000-8000-000000000001",
+			msg: &consumptionv1.CompanionStageUp{
+				Envelope:    env("ffff0002-0000-7000-8000-000000000001"),
+				CompanionId: growthFamiliar,
+				OwnerGcid:   growthGCID,
+				StageFrom:   2,
+				StageTo:     3,
+			},
+			wantFamiliar: growthFamiliar,
+		},
+		{
+			topic:   fg.TopicBreedRevealedCompanion,
+			eventID: "ffff0003-0000-7000-8000-000000000001",
+			msg: &consumptionv1.CompanionBreedRevealed{
+				Envelope:          env("ffff0003-0000-7000-8000-000000000001"),
+				CompanionId:       growthFamiliar,
+				OwnerGcid:         growthGCID,
+				Species:           consumptionv1.CompanionSpecies_COMPANION_SPECIES_FOX,
+				ShinyVariant:      true,
+				Rarity:            "legendary",
+				EggSku:            "egg_standard_v1",
+				RolledProbability: 0.0125,
+			},
+			wantFamiliar: growthFamiliar,
+		},
+		{
+			topic:   fg.TopicHatchedCompanion,
+			eventID: "ffff0004-0000-7000-8000-000000000001",
+			msg: &consumptionv1.CompanionHatched{
+				Envelope:    env("ffff0004-0000-7000-8000-000000000001"),
+				CompanionId: growthFamiliar,
+				OwnerGcid:   growthGCID,
+			},
+			wantFamiliar: growthFamiliar,
+		},
+		{
+			topic:   fg.TopicSourceRevelationCompanion,
+			eventID: "ffff0005-0000-7000-8000-000000000001",
+			msg: &consumptionv1.CompanionSourceRevelation{
+				Envelope:              env("ffff0005-0000-7000-8000-000000000001"),
+				CompanionId:           growthFamiliar,
+				OwnerGcid:             growthGCID,
+				WindowDurationSeconds: 900,
+			},
+			wantFamiliar: growthFamiliar,
+		},
+		{
+			topic:   fg.TopicEggPurchasedCompanion,
+			eventID: "ffff0006-0000-7000-8000-000000000001",
+			msg: &consumptionv1.CompanionEggPurchased{
+				Envelope:    env("ffff0006-0000-7000-8000-000000000001"),
+				CompanionId: growthFamiliar,
+				OwnerGcid:   growthGCID,
+				EggSku:      "egg_standard_v1",
+				Source:      "purchase",
+			},
+			wantFamiliar: growthFamiliar,
+		},
+		{
+			topic:   fg.TopicPaymentSucceededCompanion,
+			eventID: "ffff0007-0000-7000-8000-000000000001",
+			msg: &tenancyv1.CompanionEggPaymentSucceeded{
+				Envelope:        env("ffff0007-0000-7000-8000-000000000001"),
+				EggSku:          "egg_standard_v1",
+				AmountCentsPaid: 1299,
+				Currency:        "SGD",
+			},
+		},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.topic, func(t *testing.T) {
+			t.Parallel()
+			sub, repo := newTestSubscriber(t)
+			h, err := events.FamiliarGrowthAuditPullHandler(sub, tc.topic)
+			if err != nil {
+				t.Fatalf("construct %s: %v", tc.topic, err)
+			}
+			payload, merr := proto.Marshal(tc.msg)
+			if merr != nil {
+				t.Fatalf("marshal: %v", merr)
+			}
+			msg := eventbus.Message{
+				Subject:  tc.topic,
+				Envelope: testEnvelope(tc.eventID),
+				Payload:  payload,
+			}
+			if err := h(context.Background(), msg); err != nil {
+				t.Fatalf("%s handler returned error: %v", tc.topic, err)
+			}
+			rows := ledgerRows(t, repo)
+			if len(rows) != 1 {
+				t.Fatalf("expected 1 ledger row for %s; got %d", tc.topic, len(rows))
+			}
+			if rows[0].SourceTopic != tc.topic {
+				t.Errorf("source_topic = %q, want the companion subject %q", rows[0].SourceTopic, tc.topic)
+			}
+			if tc.wantFamiliar != "" && rows[0].FamiliarID != tc.wantFamiliar {
+				t.Errorf("familiar_id = %q, want %q", rows[0].FamiliarID, tc.wantFamiliar)
+			}
+		})
+	}
+}

@@ -72,6 +72,14 @@ type familiarGrowthAuditBinding struct {
 // The subscription names are preserved verbatim from the Pub/Sub era
 // as the NATS durable consumer names, as with the token_usage / ritual_audit
 // consumers.
+//
+// ADR-254 (companion rename): the producers now emit the companion.* subjects,
+// so a second family of bindings subscribes them. The companion subscription
+// names follow ADR-254 D10 verbatim
+// (chora-observability.consumption-companion-*); the legacy familiar.*
+// bindings are RETAINED alongside them — the JetStream consume loop creates
+// the new durables via CreateOrUpdateConsumer at boot, and keeping the legacy
+// lane costs nothing while any straggler producer is still on the old name.
 var familiarGrowthAuditBindings = []familiarGrowthAuditBinding{
 	{Topic: fg.TopicExpAwarded, Subscription: "chora-observability.consumption-familiar-exp_awarded", Shape: ingressPull},
 	{Topic: fg.TopicStageUp, Subscription: "chora-observability.consumption-familiar-stage_up", Shape: ingressPull},
@@ -80,6 +88,13 @@ var familiarGrowthAuditBindings = []familiarGrowthAuditBinding{
 	{Topic: fg.TopicSourceRevelation, Subscription: "chora-observability.consumption-familiar-source_revelation", Shape: ingressPull},
 	{Topic: fg.TopicEggPurchased, Subscription: "chora-observability.consumption-familiar-egg_purchased", Shape: ingressPull},
 	{Topic: fg.TopicPaymentSucceeded, Subscription: "chora-observability.tenancy-familiar_egg-payment_succeeded", Shape: ingressPull},
+	{Topic: fg.TopicExpAwardedCompanion, Subscription: "chora-observability.consumption-companion-exp_awarded", Shape: ingressPull},
+	{Topic: fg.TopicStageUpCompanion, Subscription: "chora-observability.consumption-companion-stage_up", Shape: ingressPull},
+	{Topic: fg.TopicBreedRevealedCompanion, Subscription: "chora-observability.consumption-companion-breed_revealed", Shape: ingressPull},
+	{Topic: fg.TopicHatchedCompanion, Subscription: "chora-observability.consumption-companion-hatched", Shape: ingressPull},
+	{Topic: fg.TopicSourceRevelationCompanion, Subscription: "chora-observability.consumption-companion-source_revelation", Shape: ingressPull},
+	{Topic: fg.TopicEggPurchasedCompanion, Subscription: "chora-observability.consumption-companion-egg_purchased", Shape: ingressPull},
+	{Topic: fg.TopicPaymentSucceededCompanion, Subscription: "chora-observability.tenancy-companion_egg-payment_succeeded", Shape: ingressPull},
 }
 
 // validateFamiliarGrowthAuditBindings is the structural guard. subscribedTopics

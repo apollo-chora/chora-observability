@@ -188,6 +188,70 @@ func TestRitualRunAuditConsumer_SubscribedTopic(t *testing.T) {
 	}
 }
 
+// ADR-254 companion rename: the producer now emits
+// chora.consumption.companion.ritual_run_completed.v1. The consumer must
+// accept the companion source topic and record it on the audit row.
+func TestRitualRunAuditConsumer_AcceptsCompanionTopic(t *testing.T) {
+	t.Parallel()
+	c, repo := newRitualConsumer(t)
+	ev := sampleRitualEvent()
+	ev.SourceTopic = ra.TopicCompanionRitualRunCompleted
+	if err := c.Handle(context.Background(), ev); err != nil {
+		t.Fatalf("handle companion topic: %v", err)
+	}
+	rows, _ := repo.List(context.Background(), ritTenantID, 0)
+	if len(rows) != 1 {
+		t.Fatalf("expected 1 row; got %d", len(rows))
+	}
+	if rows[0].SourceTopic != ra.TopicCompanionRitualRunCompleted {
+		t.Errorf("source_topic = %q, want %q", rows[0].SourceTopic, ra.TopicCompanionRitualRunCompleted)
+	}
+}
+
+// The pull handler reads the delivered subject off the message, so a message
+// arriving on the companion subscription projects with the companion source
+// topic (the handler instance serves both subscriptions).
+func TestRitualRunAuditPullHandler_CompanionSubjectProjects(t *testing.T) {
+	t.Parallel()
+	c, repo := newRitualConsumer(t)
+	body, err := proto.Marshal(&consumptionv1.RitualRunCompleted{
+		RunId:       ritRunID,
+		RitualId:    ritRitualID,
+		CompanionId: ritFamiliar,
+		OwnerGcid:   ritGCID,
+		RevisionNo:  3,
+		Status:      consumptionv1.RitualRunStatus_RITUAL_RUN_STATUS_COMPLETED,
+		ManaCharged: 20,
+		SinkRef:     "atom://draft/42",
+	})
+	if err != nil {
+		t.Fatalf("marshal binary payload: %v", err)
+	}
+	msg := eventbus.Message{
+		Subject: ra.TopicCompanionRitualRunCompleted,
+		Envelope: envelope.Envelope{
+			EventID:    ritEventID2,
+			TenantID:   ritTenantID,
+			GCID:       ritGCID,
+			OccurredAt: time.Date(2026, 7, 8, 10, 0, 0, 0, time.UTC),
+		},
+		Payload: body,
+	}
+	if err := events.RitualRunAuditPullHandler(c)(context.Background(), msg); err != nil {
+		t.Fatalf("pull handle: %v", err)
+	}
+	rows, _ := repo.List(context.Background(), ritTenantID, 0)
+	if len(rows) != 1 {
+		t.Fatalf("expected 1 row; got %d", len(rows))
+	}
+	if rows[0].SourceTopic != ra.TopicCompanionRitualRunCompleted {
+		t.Errorf("source_topic = %q, want %q", rows[0].SourceTopic, ra.TopicCompanionRitualRunCompleted)
+	}
+	if rows[0].RunID != ritRunID || rows[0].Status != "completed" {
+		t.Fatalf("projection fields mismatch: %+v", rows[0])
+	}
+}
+
 // The StreamingPull JSON decode-binding hydrates the event from the payload
 // body + the reconstructed envelope (envelope gcid wins over payload
 // owner_gcid), then projects it.

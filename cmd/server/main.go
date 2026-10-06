@@ -518,6 +518,28 @@ func main() {
 		ctx, bus, ritualAuditSubscription, ritualAuditHandler,
 	)
 
+	// ADR-254 companion rename: the producer now emits
+	// chora.consumption.companion.ritual_run_completed.v1. The same consumer
+	// and pull handler serve the companion subscription — the handler reads
+	// the delivered subject off the message, and the consumer validates both
+	// the legacy familiar.* and the canonical companion.* source topics. The
+	// legacy subscription above is retained alongside.
+	ritualAuditCompanionSubscription := envOrDefault(
+		"CHORA_RITUAL_AUDIT_COMPANION_SUBSCRIPTION", DefaultRitualAuditCompanionSubscription,
+	)
+	ritualAuditCompanionHandler := withQuarantine(
+		events.RitualRunAuditPullHandler(ritualAuditConsumer),
+		quarantineDeps{
+			ConsumerName: "ritual_run_audit_companion",
+			Topic:        ritualaudit.TopicCompanionRitualRunCompleted,
+			Store:        outboxStore,
+			Alert:        sinkAlert,
+		},
+	)
+	ritualAuditCompanionDone := startRitualRunAuditSubscriber(
+		ctx, bus, ritualAuditCompanionSubscription, ritualAuditCompanionHandler,
+	)
+
 	// ----------------------------------------------------------------------
 	// CHO-2148 — external web-egress entitlement projection + kill-switch.
 	//
@@ -754,6 +776,17 @@ func main() {
 			log.Printf("ritual_run_audit subscriber drained")
 		case <-time.After(5 * time.Second):
 			log.Printf("ritual_run_audit subscriber drain deadline exceeded")
+		}
+	}
+
+	// Drain the ADR-254 companion ritual_run_audit subscriber goroutine —
+	// same contract as the legacy lane above.
+	if ritualAuditCompanionDone != nil {
+		select {
+		case <-ritualAuditCompanionDone:
+			log.Printf("ritual_run_audit_companion subscriber drained")
+		case <-time.After(5 * time.Second):
+			log.Printf("ritual_run_audit_companion subscriber drain deadline exceeded")
 		}
 	}
 

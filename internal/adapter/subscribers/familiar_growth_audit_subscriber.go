@@ -175,7 +175,9 @@ func New(cfg Config) *FamiliarGrowthAuditSubscriber {
 	}
 }
 
-// SubscribedTopics returns the inbound topics this subscriber binds to.
+// SubscribedTopics returns the inbound topics this subscriber binds to: the
+// 7 ADR-254 canonical companion.* subjects plus the 7 legacy familiar.*
+// subjects (retained for straggler producers still on the legacy name).
 func (s *FamiliarGrowthAuditSubscriber) SubscribedTopics() []string {
 	return []string{
 		fg.TopicExpAwarded,
@@ -185,6 +187,13 @@ func (s *FamiliarGrowthAuditSubscriber) SubscribedTopics() []string {
 		fg.TopicSourceRevelation,
 		fg.TopicEggPurchased,
 		fg.TopicPaymentSucceeded,
+		fg.TopicExpAwardedCompanion,
+		fg.TopicStageUpCompanion,
+		fg.TopicBreedRevealedCompanion,
+		fg.TopicHatchedCompanion,
+		fg.TopicSourceRevelationCompanion,
+		fg.TopicEggPurchasedCompanion,
+		fg.TopicPaymentSucceededCompanion,
 	}
 }
 
@@ -228,7 +237,7 @@ func (s *FamiliarGrowthAuditSubscriber) process(ctx context.Context, ev Familiar
 	dimension := fg.IMDADimensionAccountability
 
 	switch ev.SourceTopic {
-	case fg.TopicExpAwarded:
+	case fg.TopicExpAwarded, fg.TopicExpAwardedCompanion:
 		req.MetricsDelta = &fg.DailyMetricsDelta{
 			DayBucket:       truncateToDay(occurredAt),
 			Source:          fallbackString(ev.ExpSource, "unknown"),
@@ -242,7 +251,7 @@ func (s *FamiliarGrowthAuditSubscriber) process(ctx context.Context, ev Familiar
 			"chora.exp.delta":   ev.ExpDelta,
 			"chora.imda.d1":     true,
 		})
-	case fg.TopicStageUp:
+	case fg.TopicStageUp, fg.TopicStageUpCompanion:
 		req.MetricsDelta = &fg.DailyMetricsDelta{
 			DayBucket:       truncateToDay(occurredAt),
 			Source:          "stage_up",
@@ -255,7 +264,7 @@ func (s *FamiliarGrowthAuditSubscriber) process(ctx context.Context, ev Familiar
 			"chora.growth.stage_to": ev.StageTo,
 			"chora.imda.d1":         true,
 		})
-	case fg.TopicBreedRevealed:
+	case fg.TopicBreedRevealed, fg.TopicBreedRevealedCompanion:
 		dimension = fg.IMDADimensionTransparency
 		req.BreedRoll = &fg.BreedRollAuditRow{
 			AuditID:              auditID,
@@ -281,7 +290,7 @@ func (s *FamiliarGrowthAuditSubscriber) process(ctx context.Context, ev Familiar
 			"chora.egg_sku":       ev.EggSKU,
 			"chora.imda.d2":       true,
 		})
-	case fg.TopicHatched:
+	case fg.TopicHatched, fg.TopicHatchedCompanion:
 		// hatched.v1 is the user-visible egg-hatch lifecycle transition;
 		// IMDA D2 transparency. Drives the funnel hatched-count directly
 		// per Fix-D 2026-05-16 (replacing the breed_revealed proxy).
@@ -296,13 +305,13 @@ func (s *FamiliarGrowthAuditSubscriber) process(ctx context.Context, ev Familiar
 			"chora.owner_gcid":  ev.OwnerGCID,
 			"chora.imda.d2":     true,
 		})
-	case fg.TopicSourceRevelation:
+	case fg.TopicSourceRevelation, fg.TopicSourceRevelationCompanion:
 		s.recordSpan(ctx, "familiar_growth.source_revelation", map[string]any{
 			"chora.tenant_id":   ev.TenantID,
 			"chora.familiar_id": ev.FamiliarID,
 			"chora.imda.d1":     true,
 		})
-	case fg.TopicEggPurchased:
+	case fg.TopicEggPurchased, fg.TopicEggPurchasedCompanion:
 		req.FunnelDelta = &fg.EggFunnelDelta{
 			DayBucket:      truncateToDay(occurredAt),
 			PurchasedDelta: 1,
@@ -313,7 +322,7 @@ func (s *FamiliarGrowthAuditSubscriber) process(ctx context.Context, ev Familiar
 			"chora.egg_sku":     ev.EggSKU,
 			"chora.imda.d1":     true,
 		})
-	case fg.TopicPaymentSucceeded:
+	case fg.TopicPaymentSucceeded, fg.TopicPaymentSucceededCompanion:
 		s.recordSpan(ctx, "familiar_growth.payment_succeeded", map[string]any{
 			"chora.tenant_id": ev.TenantID,
 			"chora.egg_sku":   ev.EggSKU,
@@ -385,7 +394,14 @@ func validateEvent(ev FamiliarGrowthEvent) error {
 		fg.TopicHatched,
 		fg.TopicSourceRevelation,
 		fg.TopicEggPurchased,
-		fg.TopicPaymentSucceeded:
+		fg.TopicPaymentSucceeded,
+		fg.TopicExpAwardedCompanion,
+		fg.TopicStageUpCompanion,
+		fg.TopicBreedRevealedCompanion,
+		fg.TopicHatchedCompanion,
+		fg.TopicSourceRevelationCompanion,
+		fg.TopicEggPurchasedCompanion,
+		fg.TopicPaymentSucceededCompanion:
 		return nil
 	default:
 		return fmt.Errorf("subscribers: unknown source_topic %q", ev.SourceTopic)

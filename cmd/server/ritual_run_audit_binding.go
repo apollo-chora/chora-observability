@@ -27,6 +27,13 @@ import (
 // preserved verbatim from the Pub/Sub era as the NATS durable consumer name.
 const DefaultRitualAuditSubscription = "chora-observability.observability-ritual_run_completed"
 
+// DefaultRitualAuditCompanionSubscription is the ADR-254 canonical companion
+// subscription name (ADR-254 D10: the observability consumer ids are
+// chora-observability.consumption-companion-*). The producer now emits
+// chora.consumption.companion.ritual_run_completed.v1; the legacy familiar.*
+// subscription above is retained alongside it.
+const DefaultRitualAuditCompanionSubscription = "chora-observability.consumption-companion-ritual_run_completed"
+
 // startRitualRunAuditSubscriber starts a JetStream consume-loop goroutine
 // bound to the canonical ritual-audit subscription. Mirrors
 // startTokenUsageSubscriber: the goroutine exits cleanly when ctx is canceled

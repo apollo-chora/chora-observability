@@ -113,6 +113,81 @@ var binaryDecoders = map[string]struct {
 		},
 		project: projectEggPaymentSucceeded,
 	},
+
+	// ADR-254 canonical companion subjects. The producers emit the SAME binary
+	// proto messages on these topics as on the legacy familiar.* ones — only
+	// the aggregate token in the subject changed — so the decoders and
+	// projectors are identical.
+	"chora.consumption.companion.exp_awarded.v1": {
+		decode: func(payload []byte) (proto.Message, error) {
+			var m consumptionv1.CompanionExpAwarded
+			if err := proto.Unmarshal(payload, &m); err != nil {
+				return nil, err
+			}
+			return &m, nil
+		},
+		project: projectExpAwarded,
+	},
+	"chora.consumption.companion.stage_up.v1": {
+		decode: func(payload []byte) (proto.Message, error) {
+			var m consumptionv1.CompanionStageUp
+			if err := proto.Unmarshal(payload, &m); err != nil {
+				return nil, err
+			}
+			return &m, nil
+		},
+		project: projectStageUp,
+	},
+	"chora.consumption.companion.breed_revealed.v1": {
+		decode: func(payload []byte) (proto.Message, error) {
+			var m consumptionv1.CompanionBreedRevealed
+			if err := proto.Unmarshal(payload, &m); err != nil {
+				return nil, err
+			}
+			return &m, nil
+		},
+		project: projectBreedRevealed,
+	},
+	"chora.consumption.companion.hatched.v1": {
+		decode: func(payload []byte) (proto.Message, error) {
+			var m consumptionv1.CompanionHatched
+			if err := proto.Unmarshal(payload, &m); err != nil {
+				return nil, err
+			}
+			return &m, nil
+		},
+		project: projectHatched,
+	},
+	"chora.consumption.companion.source_revelation.v1": {
+		decode: func(payload []byte) (proto.Message, error) {
+			var m consumptionv1.CompanionSourceRevelation
+			if err := proto.Unmarshal(payload, &m); err != nil {
+				return nil, err
+			}
+			return &m, nil
+		},
+		project: projectSourceRevelation,
+	},
+	"chora.consumption.companion.egg_purchased.v1": {
+		decode: func(payload []byte) (proto.Message, error) {
+			var m consumptionv1.CompanionEggPurchased
+			if err := proto.Unmarshal(payload, &m); err != nil {
+				return nil, err
+			}
+			return &m, nil
+		},
+		project: projectEggPurchased,
+	},
+	"chora.tenancy.companion_egg.payment_succeeded.v1": {
+		decode: func(payload []byte) (proto.Message, error) {
+			var m tenancyv1.CompanionEggPaymentSucceeded
+			if err := proto.Unmarshal(payload, &m); err != nil {
+				return nil, err
+			}
+			return &m, nil
+		},
+		project: projectEggPaymentSucceeded,
+	},
 }
 
 // DecodePayloadMap decodes inbound event-bus message bytes into a snake_case

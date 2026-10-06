@@ -156,13 +156,13 @@ func buildFamiliarGrowthEvent(boundTopic string, msg eventbus.Message) (subscrib
 	// zero value; the subscriber's per-topic switch reads only the subset
 	// relevant to SourceTopic.
 	switch boundTopic {
-	case fg.TopicExpAwarded:
+	case fg.TopicExpAwarded, fg.TopicExpAwardedCompanion:
 		ev.ExpDelta = int32Field(payload, "exp_delta")
 		ev.ExpSource = strField(payload, "exp_source")
-	case fg.TopicStageUp:
+	case fg.TopicStageUp, fg.TopicStageUpCompanion:
 		ev.StageFrom = int32Field(payload, "stage_from")
 		ev.StageTo = int32Field(payload, "stage_to")
-	case fg.TopicBreedRevealed:
+	case fg.TopicBreedRevealed, fg.TopicBreedRevealedCompanion:
 		ev.EggSKU = strField(payload, "egg_sku")
 		ev.Species = strField(payload, "species")
 		ev.Rarity = strField(payload, "rarity")
@@ -171,15 +171,15 @@ func buildFamiliarGrowthEvent(boundTopic string, msg eventbus.Message) (subscrib
 		if v, ok := payload["distribution_snapshot"].(map[string]any); ok {
 			ev.DistributionSnapshot = v
 		}
-	case fg.TopicHatched:
+	case fg.TopicHatched, fg.TopicHatchedCompanion:
 		// hatched.v1 drives the funnel hatched count directly (Fix-D
 		// 2026-05-16); no topic-specific scalar projection is needed.
-	case fg.TopicSourceRevelation:
+	case fg.TopicSourceRevelation, fg.TopicSourceRevelationCompanion:
 		ev.WindowDurationSeconds = int32Field(payload, "window_duration_seconds")
-	case fg.TopicEggPurchased:
+	case fg.TopicEggPurchased, fg.TopicEggPurchasedCompanion:
 		ev.EggSKU = strField(payload, "egg_sku")
 		ev.PurchaseSource = strField(payload, "purchase_source")
-	case fg.TopicPaymentSucceeded:
+	case fg.TopicPaymentSucceeded, fg.TopicPaymentSucceededCompanion:
 		ev.EggSKU = strField(payload, "egg_sku")
 		ev.AmountCents = int64Field(payload, "amount_cents")
 		ev.Currency = strField(payload, "currency")

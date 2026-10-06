@@ -23,6 +23,12 @@ import (
 // (Fix-D 2026-05-16 added hatched.v1 — was previously proxied through
 // breed_revealed.v1 in the egg-funnel rollup; now sourced directly so the
 // IMDA D2 audit log records the actual lifecycle transition).
+//
+// The familiar.* names are the LEGACY subjects: ADR-254 renamed the aggregate
+// to `companion` and the producers now emit the companion.* subjects below.
+// Both families are subscribed — the companion.* subjects carry the live
+// traffic, the familiar.* subjects are retained for any straggler producer
+// still on the legacy name.
 const (
 	TopicExpAwarded       = "chora.consumption.familiar.exp_awarded.v1"
 	TopicStageUp          = "chora.consumption.familiar.stage_up.v1"
@@ -31,6 +37,21 @@ const (
 	TopicSourceRevelation = "chora.consumption.familiar.source_revelation.v1"
 	TopicEggPurchased     = "chora.consumption.familiar.egg_purchased.v1"
 	TopicPaymentSucceeded = "chora.tenancy.familiar_egg.payment_succeeded.v1"
+)
+
+// ADR-254 canonical companion source topics. Same event types, same payloads,
+// same projection — only the aggregate token in the subject changed
+// (familiar -> companion). chora-contracts is the source of truth for these
+// names (proto/events/consumption/companion.proto,
+// proto/events/tenancy/companion_egg.proto).
+const (
+	TopicExpAwardedCompanion       = "chora.consumption.companion.exp_awarded.v1"
+	TopicStageUpCompanion          = "chora.consumption.companion.stage_up.v1"
+	TopicBreedRevealedCompanion    = "chora.consumption.companion.breed_revealed.v1"
+	TopicHatchedCompanion          = "chora.consumption.companion.hatched.v1"
+	TopicSourceRevelationCompanion = "chora.consumption.companion.source_revelation.v1"
+	TopicEggPurchasedCompanion     = "chora.consumption.companion.egg_purchased.v1"
+	TopicPaymentSucceededCompanion = "chora.tenancy.companion_egg.payment_succeeded.v1"
 )
 
 // IMDA dimensions per ADR-141 canonical taxonomy.

@@ -78,17 +78,25 @@ func TestFamiliarGrowthAuditBindings_AllPullShaped(t *testing.T) {
 
 // TestFamiliarGrowthAuditBindings_SubscriptionNamesMatchDeployedReality pins
 // the canonical subscription short-names against the names that actually exist
-// in the NATS deployment (verified 2026-07-17).
+// in the NATS deployment (verified 2026-07-17 for the familiar.* family; the
+// companion.* family follows ADR-254 D10 verbatim).
 // A typo here is a silently-inert consumer.
 func TestFamiliarGrowthAuditBindings_SubscriptionNamesMatchDeployedReality(t *testing.T) {
 	deployed := map[string]string{
-		fg.TopicExpAwarded:       "chora-observability.consumption-familiar-exp_awarded",
-		fg.TopicStageUp:          "chora-observability.consumption-familiar-stage_up",
-		fg.TopicBreedRevealed:    "chora-observability.consumption-familiar-breed_revealed",
-		fg.TopicHatched:          "chora-observability.consumption-familiar-hatched",
-		fg.TopicSourceRevelation: "chora-observability.consumption-familiar-source_revelation",
-		fg.TopicEggPurchased:     "chora-observability.consumption-familiar-egg_purchased",
-		fg.TopicPaymentSucceeded: "chora-observability.tenancy-familiar_egg-payment_succeeded",
+		fg.TopicExpAwarded:                "chora-observability.consumption-familiar-exp_awarded",
+		fg.TopicStageUp:                   "chora-observability.consumption-familiar-stage_up",
+		fg.TopicBreedRevealed:             "chora-observability.consumption-familiar-breed_revealed",
+		fg.TopicHatched:                   "chora-observability.consumption-familiar-hatched",
+		fg.TopicSourceRevelation:          "chora-observability.consumption-familiar-source_revelation",
+		fg.TopicEggPurchased:              "chora-observability.consumption-familiar-egg_purchased",
+		fg.TopicPaymentSucceeded:          "chora-observability.tenancy-familiar_egg-payment_succeeded",
+		fg.TopicExpAwardedCompanion:       "chora-observability.consumption-companion-exp_awarded",
+		fg.TopicStageUpCompanion:          "chora-observability.consumption-companion-stage_up",
+		fg.TopicBreedRevealedCompanion:    "chora-observability.consumption-companion-breed_revealed",
+		fg.TopicHatchedCompanion:          "chora-observability.consumption-companion-hatched",
+		fg.TopicSourceRevelationCompanion: "chora-observability.consumption-companion-source_revelation",
+		fg.TopicEggPurchasedCompanion:     "chora-observability.consumption-companion-egg_purchased",
+		fg.TopicPaymentSucceededCompanion: "chora-observability.tenancy-companion_egg-payment_succeeded",
 	}
 	for _, b := range familiarGrowthAuditBindings {
 		want, ok := deployed[b.Topic]
