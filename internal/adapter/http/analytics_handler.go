@@ -16,8 +16,8 @@
 //
 // READ-ONLY guarantee: the consolidated analytics slice does NOT
 // republish Pub/Sub events. Per Pillar 4 of agentic-resilience-d6 the
-// upstream subscriber's Ingest call must run AFTER ack/nack — see the
-// eventsubscriber package; HTTP routes here only serve query views.
+// upstream subscriber's Ingest call must run AFTER ack/nack; HTTP routes
+// here only serve query views.
 //
 // Trace span attributes: every handler emits `chora.tenant_id`,
 // `chora.gcid` (when present), `chora.surface = O+`, and
