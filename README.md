@@ -1,223 +1,172 @@
 # chora-observability
 
-Observability service for Chora. It stores token usage, agent decisions, audit projections, budgets, and trace correlations.
+## About
 
-The recommended deployment is a local Docker container backed by PostgreSQL and a NATS JetStream event bus. Grafana Tempo is optional (trace reads). No Google Cloud infrastructure is required.
+chora-observability is a Go service that records and serves Chora observability data, including token usage, agent decisions, trace correlations, cost aggregates, budgets, and audit projections. It exposes an HTTP REST API and a gRPC API, and consumes and publishes events through NATS JetStream. PostgreSQL provides durable repositories when configured, while selected local development paths use in-memory stores.
 
-## Local deployment
+## Quick start
 
-### Requirements
+Prerequisites:
 
+- Go 1.26.1 or newer
 - Docker with Compose
-- PostgreSQL 18
-- NATS 2 (JetStream enabled)
-- A `walfa/chora-observability` image
-- The observability database migrations applied to PostgreSQL
+- PostgreSQL 18 for durable local development
+- NATS 2 with JetStream enabled
+- A built `chora-observability` image for the repository's Compose example
 
-The service exposes:
+For a local container stack, copy the example environment file and build the image:
 
-| Port | Protocol | Purpose |
-|---|---|---|
-| `8080` | HTTP | REST API, health and readiness |
-| `9090` | gRPC | Observability gRPC API + health |
+```bash
+cp .env.example .env
 
-### Recommended Compose configuration
+docker buildx build \
+  --platform=linux/amd64 \
+  -f Dockerfile \
+  --build-arg SERVICE_NAME=chora-observability \
+  --build-arg GIT_SHA=$(git rev-parse --short HEAD) \
+  --build-arg BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) \
+  -t chora-observability:local \
+  --load \
+  .
 
-If PostgreSQL and NATS already exist in your Compose stack, add the service like this:
-
-```yaml
-chora-observability:
-  image: walfa/chora-observability:latest
-  container_name: chora-observability
-  restart: unless-stopped
-
-  env_file:
-    - .env
-
-  environment:
-    CHORA_STRICT_STARTUP: "true"
-
-    CHORA_DB_DSN: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
-
-    NATS_URL: nats://nats:4222
-    CHORA_SOURCE_PROJECT: chora-local
-
-    CHORA_TRACING_ENABLED: "false"
-
-    PORT: "8080"
-    CHORA_GRPC_PORT: "9090"
-
-  ports:
-    - "8080:8080"
-    - "9090:9090"
-
-  depends_on:
-    postgres:
-      condition: service_healthy
-    nats:
-      condition: service_healthy
-
-  stop_grace_period: 30s
+CHORA_OBSERVABILITY_IMAGE=chora-observability:local docker compose -f compose.local.yaml up
 ```
 
-The hostname in `CHORA_DB_DSN` is the Compose service name, not `localhost`. Likewise, `NATS_URL` must use the NATS service's Compose service name.
+The example stack starts PostgreSQL, starts NATS with JetStream enabled, applies the forward SQL migrations in `migrations/` on first PostgreSQL initialization, and starts the service with strict startup enabled.
 
-## Environment
+For direct local execution, create an environment file from `.env.example`, provide `NATS_URL`, and leave `CHORA_DB_DSN` unset to use the service's in-memory repository paths. The event bus is mandatory: the server exits when `NATS_URL` is missing.
 
-A minimal local `.env` can look like:
-
-```dotenv
-POSTGRES_USER=chora
-POSTGRES_PASSWORD=change-me
-POSTGRES_DB=chora_observability
-
-NATS_URL=nats://127.0.0.1:4222
-CHORA_SOURCE_PROJECT=chora-local
+```bash
+cp .env.example .env
+# edit .env and set NATS_URL to a reachable JetStream server
+go run ./cmd/server
 ```
 
-The application can also load a dotenv file itself. It checks `.env` and then `/app/.env`. Set `CHORA_ENV_FILE` to use a different path.
+## Usage
 
-Values already injected into the process environment take precedence over values in a dotenv file. This makes `env_file:` and Compose `environment:` overrides safe to use together.
+The HTTP server listens on port `8080` by default. Set `PORT` to change it. The gRPC server listens on `9090` by default; set `CHORA_GRPC_PORT` to change it.
 
-Never bake a real `.env` into the container image. Local dotenv files are ignored by Git and excluded from the Docker build context.
+Protected HTTP routes require the `X-Tenant-Id` header. The service also accepts a W3C `traceparent` header and echoes it on the response.
 
-## Strict startup
-
-Local deployments should use:
-
-```dotenv
-CHORA_STRICT_STARTUP=true
-```
-
-This prevents the service from appearing healthy while silently running without its durable dependencies.
-
-With strict startup enabled, the process exits when:
-
-- database configuration is missing;
-- PostgreSQL bootstrap fails;
-- `NATS_URL` is missing; or
-- the NATS JetStream bus cannot be initialized.
-
-Without strict startup, the legacy development behavior is retained: missing dependencies can fall back to in-memory implementations.
-
-At startup the service logs its resolved runtime mode, for example:
-
-```text
-observability: strict startup ENABLED — durable DB and NATS event bus are required; in-memory fallbacks are forbidden
-observability: startup config strict=true tracing=false tempo_traces=false
-```
-
-## PostgreSQL
-
-For a durable local deployment, set:
-
-```dotenv
-CHORA_DB_DSN=postgres://USER:PASSWORD@postgres:5432/chora_observability?sslmode=disable
-```
-
-The service uses PostgreSQL for the durable ledger, decision log, inbox/outbox, audit projections, and other persistent repositories.
-
-A single PostgreSQL server can host databases for multiple Chora services. Prefer a dedicated database and non-superuser role for observability rather than sharing one application database between services.
-
-Database migrations live in `migrations/`.
-
-The repository also contains `deploy/local/init-db.sh`, which applies forward observability migrations to a newly initialized local PostgreSQL database. Production-only role grants in `9999_grant_app_roles.sql` are intentionally not applied by that local helper.
-
-## Event bus (NATS JetStream)
-
-The service consumes and publishes events on a NATS JetStream bus. It refuses to start without `NATS_URL` — there is no in-memory fallback, because the outbox dispatcher and every subscriber require a real broker.
-
-Streams and subscriptions are provisioned out-of-band (see `scripts/nats-init.sh` in the platform repository). The service's canonical subscriptions are documented in `cmd/server/*_binding.go`.
-
-## Tracing (Grafana Tempo)
-
-The service emits OTLP traces and can read them back from Grafana Tempo. The local stack runs Tempo with OTLP ingest on `tempo:4317` and the query API on `tempo:3200`.
-
-Set `TEMPO_QUERY_URL` to enable the Spanstore read routes:
-
-```dotenv
-TEMPO_QUERY_URL=http://tempo:3200
-```
-
-When `TEMPO_QUERY_URL` is unset, the trace-read routes (`/api/traces/export` and `/api/v1/observability/spans`) return 503 honestly ("trace exporter not configured") rather than fabricating data.
-
-`CHORA_TRACING_ENABLED` controls whether the service emits OTLP traces at all. Set it to `false` to disable trace emission.
-
-## Health checks
-
-HTTP health endpoints:
-
-```text
-GET /healthz/
-GET /readyz
-```
-
-The gRPC server also registers the standard gRPC health service on port `9090`.
-
-When using `CHORA_STRICT_STARTUP=true`, a missing required dependency causes the process to exit rather than exposing a misleading healthy service.
-
-## Main HTTP endpoints
+Health endpoints:
 
 | Method | Path | Purpose |
 |---|---|---|
+| GET | `/healthz` | Liveness |
 | GET | `/healthz/` | Liveness |
+| GET | `/health` | Liveness |
 | GET | `/readyz` | Readiness |
+
+Core HTTP API:
+
+| Method | Path | Purpose |
+|---|---|---|
 | POST | `/api/token-usage` | Record token usage |
-| GET | `/api/token-usage` | Query token usage |
-| GET | `/api/token-usage/cost` | Aggregate cost |
-| GET | `/api/token-usage/aggregate` | Aggregate by model, agent, or GCID |
-| POST | `/api/token-usage/budget` | Set a budget |
-| GET | `/api/token-usage/budget` | Query budget usage |
-| POST | `/api/token-usage/budget-check` | Perform budget pre-check |
+| GET | `/api/token-usage` | List token-usage entries |
+| GET | `/api/token-usage/cost` | Sum token-usage cost |
+| GET | `/api/token-usage/aggregate` | Group token usage by model, agent, or GCID |
+| POST | `/api/token-usage/budget` | Create or set a tenant budget |
+| GET | `/api/token-usage/budget` | Read a tenant budget and current spend |
+| POST | `/api/token-usage/budget-check` | Check a tenant budget before use |
 | POST | `/api/agent-decisions` | Record an agent decision |
-| GET | `/api/agent-decisions` | Query agent decisions |
+| GET | `/api/agent-decisions` | List agent decisions |
 | GET | `/api/agent-decisions/{id}` | Fetch an agent decision |
-| POST | `/api/correlations` | Register trace correlation |
-| GET | `/api/correlations/{id}` | Fetch trace correlation |
-| GET | `/api/cost/cumulative` | Cumulative cost |
-| GET | `/api/cost/by-act` | Cost breakdown |
-| POST | `/api/traces/export` | Spanstore range export (Tempo) |
-| GET | `/api/v1/observability/spans` | Spanstore query (Tempo) |
+| POST | `/api/correlations` | Register a trace correlation |
+| GET | `/api/correlations/{id}` | Fetch a trace correlation |
+| GET | `/api/cost/cumulative` | Return cumulative cost |
+| GET | `/api/cost/by-act` | Return cost grouped by model |
+| POST | `/api/traces/export` | Export a trace-store range |
+| GET | `/api/v1/observability/spans` | Query spans from the configured trace store |
+| GET | `/api/v1/observability/agent-decisions` | Query decisions by run ID |
+| GET | `/api/v1/observability/agent-decisions/count` | Count decisions in a time window |
+| GET | `/api/v1/observability/agents` | Return the configured agent and crew view |
+| GET | `/api/v1/observability/agent-prompts` | Return per-agent prompt evidence |
+| GET | `/api/v1/observability/eval-runs` | List agent-evaluation runs when the evidence repository is wired |
+| GET | `/api/v1/observability/eval-runs/{candidateLabel}` | Read evidence rows for one evaluation candidate |
+| GET | `/api/analytics/dashboards/learner` | Learner analytics dashboard |
+| GET | `/api/analytics/dashboards/instructor` | Instructor analytics dashboard |
+| GET | `/api/analytics/dashboards/admin` | Tenant analytics dashboard |
+| POST | `/api/analytics/cohorts` | Create an analytics cohort |
+| GET | `/api/analytics/cohorts/{id}/retention` | Read cohort retention |
+| GET | `/events` | Read audit events for a tenant |
+| GET | `/v1/audit/familiar-growth/events` | Read Familiar Growth audit events |
+| GET | `/v1/audit/familiar-growth/metrics` | Read Familiar Growth metrics |
+| GET | `/v1/audit/familiar-growth/breed-distribution` | Read the breed-distribution report |
+| GET | `/v1/audit/familiar-growth/egg-funnel` | Read the egg-funnel rollup |
+| GET | `/v1/audit/ritual-runs` | Read ritual-run audit rows |
+| GET | `/api/v1/admin/egress/kill-switch` | Read the platform egress kill-switch |
+| PATCH | `/api/v1/admin/egress/kill-switch` | Change the platform egress kill-switch |
+| GET | `/api/v1/admin/companion/suspension` | Read companion containment state |
+| PATCH | `/api/v1/admin/companion/suspension` | Change companion containment state |
 
-## Configuration files
+The span query endpoints require a Bearer token and an `X-Chora-Role` value of `observer` or `auditor` in the current handler implementation. The platform egress kill-switch is limited to the `platform_operator` mesh role. Companion containment accepts `platform_operator`, `auditor`, `admin`, or `owner` for reads; writes are additionally constrained by scope and actor.
 
-The runtime image contains:
+Runtime configuration:
 
-```text
-/config/PII_Closure_Map.yaml
-/config/pricing.yaml
-```
+| Variable | Default / requirement | Purpose |
+|---|---|---|
+| `PORT` | `8080` | HTTP listen port |
+| `CHORA_GRPC_PORT` | `9090` | gRPC listen port |
+| `CHORA_STRICT_STARTUP` | `false` | Fail on missing durable database instead of using in-memory repositories |
+| `CHORA_DB_DSN` | Optional unless strict startup is enabled | PostgreSQL connection string |
+| `CHORA_DB_DSN_SECRET_ID` | Optional | Secret-backed PostgreSQL DSN |
+| `CHORA_DB_PROJECT` | `chora-local` | Project name used by secret-backed database bootstrap |
+| `CHORA_BOOTSTRAP_TIMEOUT_SECONDS` | `30` | Database bootstrap timeout |
+| `NATS_URL` | Required | NATS JetStream server URL |
+| `CHORA_SOURCE_PROJECT` | `chora-local` | Source-project stamp for outbox envelopes |
+| `CHORA_TRACING_ENABLED` | `true` | Enable OTLP trace emission |
+| `TEMPO_QUERY_URL` | Optional | Grafana Tempo query endpoint; enables trace-read routes |
+| `CHORA_PII_CLOSURE_MAP_PATH` | `config/PII_Closure_Map.yaml` | PII closure map path |
+| `CHORA_PRICING_CONFIG_PATH` | `config/pricing.yaml` | Pricing configuration path |
+| `CHORA_ENV_FILE` | Optional | Explicit dotenv file path |
+| `CHORA_TOKEN_USAGE_SUBSCRIPTION` | Built-in canonical name | JetStream token-usage consumer name |
+| `CHORA_AGENT_DECISION_SUBSCRIPTION` | Built-in canonical name | JetStream agent-decision consumer name |
+| `CHORA_CLOSURE_SUBSCRIPTION` | Built-in canonical name | JetStream closure subscriber name |
+| `CHORA_OUTBOX_WORKER_ID` | `HOSTNAME` | Outbox worker identifier |
+| `CHORA_DB_REWRITE_FROM_PORT` | Optional | Database port rewrite source |
+| `CHORA_DB_REWRITE_TO_PORT` | Optional | Database port rewrite destination |
 
-Their paths can be overridden with:
+When `CHORA_STRICT_STARTUP=true`, PostgreSQL configuration and a working PostgreSQL bootstrap are required. Regardless of startup mode, `NATS_URL` is mandatory because subscribers and the outbox dispatcher use the JetStream bus.
 
-```dotenv
-CHORA_PII_CLOSURE_MAP_PATH=/config/PII_Closure_Map.yaml
-CHORA_PRICING_CONFIG_PATH=/config/pricing.yaml
-```
+Tracing has two separate controls. `CHORA_TRACING_ENABLED` controls OTLP emission. `TEMPO_QUERY_URL` controls trace reads. When the query URL is unset, `POST /api/traces/export` and `GET /api/v1/observability/spans` return `503`.
 
-The pricing configuration is used to derive cost information for supported model decisions.
+## Development
 
-## Local repository stack
+The service is a Go module with the server entry point in `cmd/server`, HTTP and gRPC adapters under `internal/adapter/`, domain logic under `internal/domain/`, analytics code under `internal/analytics/`, PostgreSQL adapters under `internal/adapter/pg/`, and SQL migrations under `migrations/`. Runtime configuration files used by the image are under `config/`.
 
-For development of this repository itself, `compose.local.yaml` provides an example stack containing PostgreSQL, NATS, and the observability service.
-
-If you already maintain PostgreSQL and NATS services in a larger Chora Compose stack, use those instead. There is no requirement to run the repository's example Compose file.
-
-## Building
-
-The Dockerfile builds from this standalone repository. Shared Chora modules (`chora-common`, `chora-contracts/gen/go`) are resolved through Go modules (pinned pseudo-versions in `go.mod`), so no sibling checkout is required:
+Run the tests with:
 
 ```bash
-docker buildx build --platform=linux/amd64 \
-  -f Dockerfile \
-  --build-arg GIT_SHA=$(git rev-parse --short HEAD) \
-  --build-arg BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) \
-  -t chora-observability:${TAG} .
+go test ./...
 ```
 
-## Tests
+To generate a coverage report:
 
 ```bash
 go test -coverprofile=cover.out ./...
 go tool cover -func=cover.out
 ```
+
+Build the service binary locally with:
+
+```bash
+go build -o chora-observability ./cmd/server
+```
+
+Build the container image with:
+
+```bash
+docker buildx build \
+  --platform=linux/amd64 \
+  -f Dockerfile \
+  --build-arg SERVICE_NAME=chora-observability \
+  --build-arg GIT_SHA=$(git rev-parse --short HEAD) \
+  --build-arg BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) \
+  -t chora-observability:local \
+  --load \
+  .
+```
+
+The Dockerfile builds the service as a standalone Go module and runs `go mod download` before building `./cmd/server`. The runtime image is a non-root distroless image and includes `config/PII_Closure_Map.yaml` and `config/pricing.yaml`.
+
+The local Compose file is `compose.local.yaml`. Its PostgreSQL initialization script is `deploy/local/init-db.sh`; it applies forward migrations on first database initialization and does not apply migration down files.
